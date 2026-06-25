@@ -46,12 +46,10 @@ void connnectWSV()
 {
     ws.onEvent(onEvent);
     server.addHandler(&ws);
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-              { request->send(LittleFS, "/index.html", "text/html"); });
-    server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request)
-              { request->send(LittleFS, "/script.js", "application/javascript"); });
-    server.on("/styles.css", HTTP_GET, [](AsyncWebServerRequest *request)
-              { request->send(LittleFS, "/styles.css", "text/css"); });
+
+    // Phục vụ mọi file tĩnh trong LittleFS, mặc định trả về dashboard.html khi vào "/"
+    server.serveStatic("/", LittleFS, "/").setDefaultFile("dashboard.html");
+
     server.begin();
     ElegantOTA.begin(&server);
     webserver_isrunning = true;

@@ -16,6 +16,8 @@ struct SharedContext {
     int neoState;
     SemaphoreHandle_t semLCDUpdate;
     int lcdState;
+    int mlPredicted;     // 1=Normal, 2=Warning, 3=Critical (nhãn TinyML dự đoán)
+    float mlConfidence;  // độ tin cậy 0..1 của nhãn dự đoán
 };
 
 extern float glob_temperature;

@@ -146,6 +146,13 @@ void tiny_ml_task(void *pvParameters)
         const int predicted = best + 1; // model classes 0..2 -> labels 1..3
         const int expected = risk_final_label(temperature, humidity);
 
+        if (xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(200)) == pdTRUE)
+        {
+            ctx->mlPredicted = predicted;
+            ctx->mlConfidence = output->data.f[best];
+            xSemaphoreGive(ctx->mutexContext);
+        }
+
         if (predicted == expected)
             correct++;
         inferences++;
