@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ESP32 IoT Dashboard</title>
+<link rel="stylesheet" href="./dashboard.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">E</span>
+      <span class="brand-name">ESP32 IoT</span>
+    </div>
+    <nav class="nav">
+      <a class="nav-item active" data-page="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" href="/" data-page="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+        <span>Settings</span>
+      </a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <header class="topbar">
+      <h1>Dashboard</h1>
+      <div class="badge badge-status" id="coreiotBadge"><span class="dot" id="coreiotDot"></span>CoreIoT</div>
+    </header>
+
+    <section class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-top">
+          <div class="stat-icon icon-temp">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0Z"/></svg>
+          </div>
+          <div class="stat-label">Temperature</div>
+        </div>
+        <div class="stat-value" id="statTemp">--&deg;C</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-top">
+          <div class="stat-icon icon-humi">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69s-5 5.6-5 9.31a5 5 0 0 0 10 0c0-3.71-5-9.31-5-9.31Z"/></svg>
+          </div>
+          <div class="stat-label">Humidity</div>
+        </div>
+        <div class="stat-value" id="statHumi">--%</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-top">
+          <div class="stat-icon icon-soil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M10 20c0-4 2-6 2-10"/><path d="M12 10c0-3-2-5-6-5 0 4 2 6 6 5Z"/><path d="M12 10c0-3 2-5 6-5 0 4-2 6-6 5Z"/></svg>
+          </div>
+          <div class="stat-label">Soil moisture</div>
+        </div>
+        <div class="stat-value" id="statSoil">--%</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-top">
+          <div class="stat-icon icon-time">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          </div>
+          <div class="stat-label">Time</div>
+        </div>
+        <div class="stat-value" id="statTime">--:--:--</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-top">
+          <div class="stat-icon icon-score">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2 7 4-14 2 7h6"/></svg>
+          </div>
+          <div class="stat-label">Score and Message</div>
+        </div>
+        <div class="stat-value" id="statScore">--</div>
+        <div class="stat-sub" id="statMessage">--</div>
+      </div>
+    </section>
+
+    <div class="charts-row">
+      <section class="card chart-card">
+        <div class="card-header">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-9"/></svg>
+            Sensor Data Chart
+          </h2>
+          <span class="refresh-tag">Refresh: 5s</span>
+        </div>
+        <div class="legend">
+          <span class="legend-item"><i style="background:var(--c-temp)"></i>Temperature (&deg;C)</span>
+          <span class="legend-item"><i style="background:var(--c-humi)"></i>Humidity (%)</span>
+          <span class="legend-item"><i style="background:var(--c-soil)"></i>Soil Moisture (%)</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="sensorChart"></canvas>
+        </div>
+      </section>
+
+      <section class="card map-card">
+        <div class="card-header">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.5 7-12a7 7 0 1 0-14 0c0 4.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
+            Current Location
+          </h2>
+        </div>
+        <div id="map"></div>
+      </section>
+    </div>
+
+    <div class="controls-row">
+      <section class="control-row">
+        <span class="control-label">PUMP</span>
+        <span class="badge badge-pump off" id="pumpBadge">OFF</span>
+        <button class="btn-toggle" id="pumpToggleBtn">Toggle</button>
+      </section>
+
+      <section class="control-row">
+        <span class="control-label">MODE</span>
+        <span class="badge badge-mode auto" id="modeBadge">AUTO</span>
+        <button class="btn-toggle" id="modeToggleBtn">Toggle</button>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="./dashboard.js" defer></script>
+</body>
+</html>
