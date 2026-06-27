@@ -6,7 +6,7 @@
 #include "temp_humi_monitor.h"
 // #include "mainserver.h"
 #include "tinyml.h"
-#include "task_database.h"
+// #include "task_database.h"
 
 // include task
 #include "task_check_info.h"
@@ -23,6 +23,8 @@ void setup()
   SharedContext* ctx = new SharedContext();
   ctx->temperature = 0;
   ctx->humidity = 0;
+  ctx->soilMoisture = 0;
+  ctx->soilRaw = 0;
   ctx->ledState = 1;
   ctx->neoState = 1;
   ctx->lcdState = 1;
@@ -34,9 +36,10 @@ void setup()
   xTaskCreate(led_blinky, "Task LED Blink", 2048, (void*)ctx, 2, NULL);
   xTaskCreate(neo_blinky, "Task NEO Blink", 2048, (void*)ctx, 2, NULL);
   xTaskCreate(temp_humi_monitor, "Task TEMP HUMI Monitor", 2048, (void*)ctx, 2, NULL);
+  // xTaskCreate(task_soil_sensor, "Task Soil Sensor", 2048, (void *)ctx, 2, NULL);
   // xTaskCreate(main_server_task, "Task Main Server" ,8192  ,NULL  ,2 , NULL);
   xTaskCreate(tiny_ml_task, "Tiny ML Task", 8192, (void *)ctx, 2, NULL);
-  xTaskCreate(task_database, "Task Database", 4096, (void*)ctx, 2, NULL);
+  // xTaskCreate(task_database, "Task Database", 4096, (void*)ctx, 2, NULL);
   // xTaskCreate(Task_Toogle_BOOT, "Task_Toogle_BOOT", 4096, NULL, 2, NULL);
 }
 

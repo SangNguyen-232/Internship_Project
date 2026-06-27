@@ -6,7 +6,7 @@
   var DEFAULT_LNG = 106.806336;
 
   var state = {
-    pumpState: "OFF",
+    pumpState: "ON",
     pumpMode: "AUTO", // AUTO | MANUAL (mirrors pump_mode / pump_controller from firmware)
     lat: DEFAULT_LAT,
     lng: DEFAULT_LNG,

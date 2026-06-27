@@ -9,6 +9,8 @@
 struct SharedContext {
     float temperature;
     float humidity;
+    int soilMoisture;
+    int soilRaw;
     SemaphoreHandle_t mutexContext;
     SemaphoreHandle_t semLEDUpdate;
     int ledState; // 1: Normal, 2: Warning, 3: Critical
@@ -22,6 +24,7 @@ struct SharedContext {
 
 extern float glob_temperature;
 extern float glob_humidity;
+extern float glob_soil;
 
 extern String WIFI_SSID;
 extern String WIFI_PASS;

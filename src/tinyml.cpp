@@ -157,9 +157,18 @@ void tiny_ml_task(void *pvParameters)
             correct++;
         inferences++;
 
+        // Logic thêm chữ Normal / Warning / Critical
+        const char* status = "Mismatch"; 
+        if (expected == predicted) {
+            if (expected == 1) status = "Normal";
+            else if (expected == 2) status = "Warning";
+            else if (expected == 3) status = "Critical";
+        }
+
         serialLogLock();
-        Serial.printf("TinyML T=%.1fC H=%.1f%% | rule=%d pred=%d | p=[%.2f,%.2f,%.2f] | %lums | roll_acc=%.1f%% (%lu/%lu)\n",
+        Serial.printf("TinyML T=%.1f°C H=%.1f%% | rule=%d pred=%d | %s | p=[%.2f,%.2f,%.2f] | %lums | roll_acc=%.1f%% (%lu/%lu)\n",
                       temperature, humidity, expected, predicted,
+                      status,
                       output->data.f[0], output->data.f[1], output->data.f[2],
                       (unsigned long)(t1 - t0),
                       inferences ? (100.0f * (float)correct / (float)inferences) : 0.0f,

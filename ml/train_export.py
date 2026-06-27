@@ -153,11 +153,6 @@ def main() -> int:
     import logging
     logging.getLogger("absl").setLevel(logging.ERROR)
 
-    # converter = tf.lite.TFLiteConverter.from_keras_model(model)
-    # converter.optimizations = []
-    # tflite_model = converter.convert()
-    # with open(tflite_path, "wb") as f:
-
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     converter.optimizations = []
     
