@@ -4,18 +4,18 @@
 /** Rule-based states aligned with firmware thresholds (1=Normal, 2=Warning, 3=Critical). */
 static inline int risk_led_state_from_temperature(float temperature)
 {
-    if (temperature >= 30.0f)
+    if (temperature >= 50.0f)
         return 3;
-    if (temperature >= 25.0f)
+    if (temperature >= 35.0f)
         return 2;
     return 1;
 }
 
 static inline int risk_neo_state_from_humidity(float humidity)
 {
-    if (humidity >= 70.0f)
+    if (humidity >= 95.0f)
         return 3;
-    if (humidity >= 50.0f)
+    if (humidity >= 75.0f)
         return 2;
     return 1;
 }

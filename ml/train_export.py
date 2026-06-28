@@ -18,17 +18,17 @@ import contextlib
 
 
 def led_state_from_temperature(t: float) -> int:
-    if t >= 30.0:
+    if t >= 50.0:
         return 3
-    if t >= 25.0:
+    if t >= 35.0:
         return 2
     return 1
 
 
 def neo_state_from_humidity(h: float) -> int:
-    if h >= 70.0:
+    if h >= 95.0:
         return 3
-    if h >= 50.0:
+    if h >= 75.0:
         return 2
     return 1
 
@@ -42,8 +42,8 @@ def final_label(t: float, h: float) -> int:
 def build_dataset(rng: np.random.Generator, n_extra: int = 3000) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     rows: list[tuple[float, float, int]] = []
     # Grid near decision boundaries (temperature / humidity thresholds)
-    for t in np.linspace(10.0, 45.0, 30):
-        for h in np.linspace(20.0, 75.0, 30):
+    for t in np.linspace(10.0, 55.0, 30):
+        for h in np.linspace(20.0, 100.0, 30):
             for _ in range(3):
                 tt = float(t + rng.normal(0, 0.25))
                 hh = float(h + rng.normal(0, 0.75))
@@ -51,8 +51,8 @@ def build_dataset(rng: np.random.Generator, n_extra: int = 3000) -> tuple[np.nda
                 rows.append((tt, hh, y))
     # Extra random coverage
     for _ in range(n_extra):
-        tt = float(rng.uniform(10.0, 45.0))
-        hh = float(rng.uniform(20.0, 75.0))
+        tt = float(rng.uniform(10.0, 55.0))
+        hh = float(rng.uniform(20.0, 100.0))
         rows.append((tt, hh, final_label(tt, hh)))
 
     xs = np.array([[r[0], r[1]] for r in rows], dtype=np.float32)
