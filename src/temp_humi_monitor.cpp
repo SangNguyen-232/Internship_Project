@@ -1,6 +1,7 @@
 #include "temp_humi_monitor.h"
 #include "risk_label.h"
 #include "serial_log.h"
+#include "task_webserver.h"
 
 #define SOIL_PIN 2 
 
@@ -52,6 +53,7 @@ void temp_humi_monitor(void *pvParameters) {
             
             ctx->temperature = temperature;
             ctx->humidity = humidity;
+            ctx->soilMoisture = soil_moisture;
 
             const int newLedState = risk_led_state_from_temperature(temperature);
             if (newLedState != ctx->ledState) {
@@ -102,6 +104,11 @@ void temp_humi_monitor(void *pvParameters) {
             lcd.setCursor(8, 1);
             lcd.print(statusText(ctx->lcdState));
         }
+        
+        String wsPayload = "{\"temperature\":" + String(temperature, 2) +
+                            ",\"humidity\":" + String(humidity, 2) +
+                            ",\"soil_moisture\":" + String(soil_moisture) + "}";
+        Webserver_sendata(wsPayload);
 
         vTaskDelay(5000); 
     }

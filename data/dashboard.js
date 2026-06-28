@@ -195,9 +195,22 @@
       var haveHumi = typeof data.humidity === "number";
       var haveSoil = typeof data.soil_moisture === "number";
 
+      // Định dạng giống LCD: nhiệt độ 1 chữ số thập phân + °C
       if (haveTemp) els.temp.textContent = data.temperature.toFixed(1) + "\u00B0C";
-      if (haveHumi) els.humi.textContent = data.humidity.toFixed(2) + "%";
-      if (haveSoil) els.soil.textContent = data.soil_moisture.toFixed(0) + "%";
+
+      // Định dạng giống LCD: độ ẩm 1 chữ số thập phân + %, riêng case >= 99.95 hiển thị "100%"
+      if (haveHumi) {
+        els.humi.textContent = (data.humidity >= 99.95)
+          ? "100%"
+          : data.humidity.toFixed(1) + "%";
+      }
+
+      // Định dạng giống LCD: độ ẩm đất số nguyên, đệm 0 phía trước nếu < 10 (ví dụ 05%)
+      if (haveSoil) {
+        var soilVal = Math.round(data.soil_moisture);
+        var soilStr = (soilVal < 10 ? "0" + soilVal : "" + soilVal);
+        els.soil.textContent = soilStr + "%";
+      }
 
       if (haveTemp || haveHumi || haveSoil) {
         pushChartPoint(
