@@ -6,7 +6,7 @@
   var DEFAULT_LNG = 106.806336;
 
   var state = {
-    pumpState: "ON",
+    pumpState: "OFF",
     pumpMode: "AUTO", // AUTO | MANUAL (mirrors pump_mode / pump_controller from firmware)
     lat: DEFAULT_LAT,
     lng: DEFAULT_LNG,
@@ -44,7 +44,14 @@
     return pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
   }
 
+  // Khởi tạo đồ thị cảm biến
   function initChart() {
+    // Kiểm tra nếu không có mạng, không tải được Chart thì bỏ qua để không bị crash JS
+    if (typeof Chart === 'undefined') {
+      console.warn("Không tải được Chart.js (Chế độ offline)");
+      return; 
+    }
+
     var ctx = document.getElementById("sensorChart").getContext("2d");
     chart = new Chart(ctx, {
       type: "line",
@@ -90,9 +97,15 @@
   var map = null;
   var marker = null;
   var geoWatchId = null;
-  var hasLiveGeoFix = false; // true once we've gotten a real GPS/browser location
+  var hasLiveGeoFix = false;
 
   function initMap() {
+    // Kiểm tra nếu không có mạng, không tải được Leaflet thì bỏ qua để không bị crash JS
+    if (typeof L === 'undefined') {
+      console.warn("Không tải được Leaflet (Chế độ offline)");
+      return;
+    }
+
     map = L.map("map", { zoomControl: true, attributionControl: true }).setView([state.lat, state.lng], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
@@ -103,7 +116,6 @@
     locateUser();
   }
 
-  // Ask the browser for the device's actual current location and recenter the map on it.
   function locateUser() {
     if (!navigator.geolocation) {
       console.warn("Geolocation is not supported by this browser; using default coordinates.");
@@ -122,7 +134,6 @@
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
 
-    // Keep tracking so the marker follows the real position while the dashboard is open.
     geoWatchId = navigator.geolocation.watchPosition(
       function (pos) {
         hasLiveGeoFix = true;
@@ -190,9 +201,9 @@
 
       if (haveTemp || haveHumi || haveSoil) {
         pushChartPoint(
-          haveTemp ? data.temperature : (chart.data.datasets[0].data.slice(-1)[0] || 0),
-          haveHumi ? data.humidity : (chart.data.datasets[1].data.slice(-1)[0] || 0),
-          haveSoil ? data.soil_moisture : (chart.data.datasets[2].data.slice(-1)[0] || 0)
+          haveTemp ? data.temperature : (chart && chart.data.datasets[0].data.slice(-1)[0] || 0),
+          haveHumi ? data.humidity : (chart && chart.data.datasets[1].data.slice(-1)[0] || 0),
+          haveSoil ? data.soil_moisture : (chart && chart.data.datasets[2].data.slice(-1)[0] || 0)
         );
       }
 
@@ -229,6 +240,15 @@
       .then(function (r) { return r.json(); })
       .then(function (s) {
         els.coreiotDot.className = "dot " + (s.mqtt_connected ? "online" : "offline");
+        
+        var apOverlay = document.getElementById("apModeOverlay");
+        if (apOverlay) {
+          if (s.is_ap_mode) {
+            apOverlay.style.display = "flex";
+          } else {
+            apOverlay.style.display = "none";
+          }
+        }
       })
       .catch(function () {
         els.coreiotDot.className = "dot offline";
@@ -236,22 +256,47 @@
   }
 
   // ---------- Toggle buttons ----------
+  
+  // 1. Xử lý sự kiện nút bấm PUMP (Bật / Tắt bơm thủ công)
   els.pumpToggleBtn.addEventListener("click", function () {
-    fetch("/toggle-pump")
+    // Tính toán trạng thái tiếp theo dựa trên trạng thái hiện tại trên giao diện
+    var nextState = state.pumpState === "ON" ? "OFF" : "ON";
+    
+    // Gửi yêu cầu kèm tham số ?state=ON hoặc ?state=OFF để Firmware ESP32 nhận biết chính xác
+    fetch("/toggle-pump?state=" + nextState)
       .then(function (r) { return r.text(); })
       .then(function (txt) {
-        setPumpBadge(txt.trim().toUpperCase() === "ON");
-        setModeBadge("MANUAL"); // /toggle-pump always forces MANUAL on the firmware side
+        var resState = txt.trim().toUpperCase();
+        var finalState = (resState === "ON" || resState === "OFF") ? resState : nextState;
+        
+        setPumpBadge(finalState === "ON");
+        setModeBadge("MANUAL"); // Bất kể đang là gì, can thiệp PUMP sẽ lập tức chuyển giao diện sang chế độ MANUAL
+      })
+      .catch(function (err) {
+        console.warn("Lỗi kết nối HTTP, tự động cập nhật trạng thái trên giao diện: ", err);
+        setPumpBadge(nextState === "ON");
+        setModeBadge("MANUAL");
       });
   });
 
+  // 2. Xử lý sự kiện nút bấm MODE (Chuyển đổi MANUAL <-> AUTO)
   els.modeToggleBtn.addEventListener("click", function () {
+    // Tính toán chế độ tiếp theo dựa trên chế độ hiện tại trên giao diện
     var nextMode = state.pumpMode === "MANUAL" ? "AUTO" : "MANUAL";
-    var msg = JSON.stringify({ page: "pump", action: "set_mode", value: { mode: nextMode } });
-    if (activeWs && activeWs.readyState === WebSocket.OPEN) {
-      activeWs.send(msg);
-      setModeBadge(nextMode);
-    }
+    
+    // Gửi yêu cầu cập nhật sang phía vi điều khiển ESP32
+    fetch("/set-mode?mode=" + nextMode)
+      .then(function (r) { return r.text(); })
+      .then(function (txt) {
+        var resMode = txt.trim().toUpperCase();
+        var finalMode = (resMode === "MANUAL" || resMode === "AUTO") ? resMode : nextMode;
+        
+        setModeBadge(finalMode);
+      })
+      .catch(function (err) {
+        console.warn("Lỗi kết nối HTTP khi thay đổi chế độ: ", err);
+        setModeBadge(nextMode); // Cơ chế dự phòng khi lỗi kết nối mạng
+      });
   });
 
   // ---------- Boot ----------

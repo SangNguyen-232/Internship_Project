@@ -1,9 +1,15 @@
 #include "task_webserver.h"
+#include <WiFi.h>
 
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
 bool webserver_isrunning = false;
+
+// Khai báo các biến lưu trữ cục bộ/toàn cục để xử lý logic đồng bộ
+// (Bạn có thể thêm từ khóa extern nếu các biến này đã được định nghĩa ở file .ino hoặc file khác)
+String global_pump_state = "OFF"; 
+String global_pump_mode = "AUTO"; 
 
 void Webserver_sendata(String data)
 {
@@ -37,7 +43,7 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
             String message;
             message += String((char *)data).substring(0, len);
             // parseJson(message, true);
-            handleWebSocketMessage(message);
+            // handleWebSocketMessage(message); 
         }
     }
 }
@@ -49,6 +55,54 @@ void connnectWSV()
 
     // Phục vụ mọi file tĩnh trong LittleFS, mặc định trả về dashboard.html khi vào "/"
     server.serveStatic("/", LittleFS, "/").setDefaultFile("dashboard.html");
+
+    // ---------- Định tuyến các API HTTP cho ESP32 ----------
+    
+    // 1. API lấy trạng thái hệ thống (MQTT / Hardware / AP Mode)
+    server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+        bool is_ap_mode = (WiFi.getMode() == WIFI_AP) || (WiFi.getMode() == WIFI_AP_STA && WiFi.status() != WL_CONNECTED);
+
+        // Lưu ý: Đổi 'true' thành biến trạng thái kết nối MQTT thực tế của bạn nếu cần
+        String json = "{\"mqtt_connected\": true, \"is_ap_mode\": " + String(is_ap_mode ? "true" : "false") + "}"; 
+        request->send(200, "application/json", json);
+    });
+
+    // 2. API chuyển đổi trạng thái Bơm (Khi kích hoạt, ép MODE sang MANUAL)
+    server.on("/toggle-pump", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if (request->hasParam("state")) {
+            global_pump_state = request->getParam("state")->value();
+            global_pump_state.toUpperCase();
+        } else {
+            global_pump_state = (global_pump_state == "ON") ? "OFF" : "ON";
+        }
+        
+        // !!! LOGIC QUAN TRỌNG: Người dùng bấm điều khiển bơm thủ công -> Ép chế độ sang MANUAL !!!
+        global_pump_mode = "MANUAL";
+        Serial.println("⚙️ Người dùng can thiệp nút PUMP -> Ép hệ thống sang chế độ MANUAL.");
+
+        // ---- KHU VỰC ĐIỀU KHIỂN PHẦN CỨNG THẬT ----
+        // bool pin_level = (global_pump_state == "ON");
+        // digitalWrite(PUMP_PIN, pin_level ? HIGH : LOW);
+        // --------------------------------------------
+        
+        // Phản hồi lại trạng thái thực tế về cho giao diện
+        request->send(200, "text/plain", global_pump_state);
+    });
+
+    // 3. API thay đổi Chế độ (AUTO / MANUAL)
+    server.on("/set-mode", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if (request->hasParam("mode")) {
+            global_pump_mode = request->getParam("mode")->value();
+            global_pump_mode.toUpperCase();
+        } else {
+            global_pump_mode = (global_pump_mode == "MANUAL") ? "AUTO" : "MANUAL";
+        }
+        
+        Serial.printf("⚙️ Chế độ hệ thống thay đổi thành: %s\n", global_pump_mode.c_str());
+        
+        // Phản hồi lại chế độ hiện tại về cho giao diện
+        request->send(200, "text/plain", global_pump_mode);
+    });
 
     server.begin();
     ElegantOTA.begin(&server);
