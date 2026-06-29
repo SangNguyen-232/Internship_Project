@@ -1,13 +1,12 @@
 #include "task_webserver.h"
 #include <WiFi.h>
+#include "pump.h"
 
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
 bool webserver_isrunning = false;
 
-// Khai báo các biến lưu trữ cục bộ/toàn cục để xử lý logic đồng bộ
-// (Bạn có thể thêm từ khóa extern nếu các biến này đã được định nghĩa ở file .ino hoặc file khác)
 String global_pump_state = "OFF"; 
 String global_pump_mode = "AUTO"; 
 
@@ -62,7 +61,6 @@ void connnectWSV()
     server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
         bool is_ap_mode = (WiFi.getMode() == WIFI_AP) || (WiFi.getMode() == WIFI_AP_STA && WiFi.status() != WL_CONNECTED);
 
-        // Lưu ý: Đổi 'true' thành biến trạng thái kết nối MQTT thực tế của bạn nếu cần
         String json = "{\"mqtt_connected\": true, \"is_ap_mode\": " + String(is_ap_mode ? "true" : "false") + "}"; 
         request->send(200, "application/json", json);
     });
@@ -76,16 +74,19 @@ void connnectWSV()
             global_pump_state = (global_pump_state == "ON") ? "OFF" : "ON";
         }
         
-        // !!! LOGIC QUAN TRỌNG: Người dùng bấm điều khiển bơm thủ công -> Ép chế độ sang MANUAL !!!
         global_pump_mode = "MANUAL";
         Serial.println("⚙️ Người dùng can thiệp nút PUMP -> Ép hệ thống sang chế độ MANUAL.");
 
         // ---- KHU VỰC ĐIỀU KHIỂN PHẦN CỨNG THẬT ----
-        // bool pin_level = (global_pump_state == "ON");
-        // digitalWrite(PUMP_PIN, pin_level ? HIGH : LOW);
+        if (xSemaphoreTake(xMutexPumpControl, portMAX_DELAY) == pdTRUE) {
+            pump_manual_control = true;
+            pump_manual_state = (global_pump_state == "ON");
+            xSemaphoreGive(xMutexPumpControl);
+        }
         // --------------------------------------------
+
+        Webserver_sendata("{\"pump_state\":\"" + global_pump_state + "\",\"pump_mode\":\"" + global_pump_mode + "\"}");
         
-        // Phản hồi lại trạng thái thực tế về cho giao diện
         request->send(200, "text/plain", global_pump_state);
     });
 
@@ -99,11 +100,19 @@ void connnectWSV()
         }
         
         Serial.printf("⚙️ Chế độ hệ thống thay đổi thành: %s\n", global_pump_mode.c_str());
+
+        if (xSemaphoreTake(xMutexPumpControl, portMAX_DELAY) == pdTRUE) {
+            pump_manual_control = (global_pump_mode == "MANUAL");
+            if (pump_manual_control) {
+                pump_manual_state = (global_pump_state == "ON");
+            }
+            xSemaphoreGive(xMutexPumpControl);
+        }
+
+        Webserver_sendata("{\"pump_state\":\"" + global_pump_state + "\",\"pump_mode\":\"" + global_pump_mode + "\"}");
         
-        // Phản hồi lại chế độ hiện tại về cho giao diện
         request->send(200, "text/plain", global_pump_mode);
     });
-
     server.begin();
     ElegantOTA.begin(&server);
     webserver_isrunning = true;

@@ -42,12 +42,9 @@
   var fallbackData = { labels: [], temp: [], humi: [], soil: [] };
   var fallbackCanvas = null, fallbackCtx = null;
 
-  // Khoảng thời gian giữa 2 điểm dữ liệu được vẽ lên biểu đồ (ms).
-  // Mặc định 5000ms = giữ đúng hành vi gốc (mỗi message WebSocket đều được vẽ).
   var chartIntervalMs = 5000;
   var lastChartPushTime = 0;
 
-  // Gắn dropdown chọn 5s/15s vào đúng ô "Refresh:" có sẵn trong card-header (không cần sửa HTML)
   function initChartIntervalControl() {
     var tag = document.querySelector(".chart-card .refresh-tag");
     if (!tag) return;
@@ -84,9 +81,7 @@
     return pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
   }
 
-  // Khởi tạo đồ thị cảm biến
   function initChart() {
-    // Kiểm tra nếu không có mạng, không tải được Chart thì bỏ qua để không bị crash JS
     if (typeof Chart === 'undefined') {
       console.warn("Không tải được Chart.js (Chế độ offline) -> dùng canvas thuần");
       initFallbackChart();
@@ -139,9 +134,6 @@
     var w = fallbackCanvas.width, h = fallbackCanvas.height;
     if (!w || !h) return;
     var n = fallbackData.labels.length;
-
-    // Chừa lề cho nhãn trục Y (trái) và mốc thời gian trục X (dưới),
-    // mô phỏng theo cấu hình scales.x / scales.y trong initChart() (Chart.js)
     var padLeft = 34, padRight = 10, padTop = 10, padBottom = 20;
     var plotW = w - padLeft - padRight;
     var plotH = h - padTop - padBottom;
@@ -155,19 +147,17 @@
     fallbackCtx.textBaseline = "middle";
     yTicks.forEach(function (g) {
       var y = padTop + plotH - (g / 100) * plotH;
-      fallbackCtx.strokeStyle = "rgba(255,255,255,0.05)"; // cùng màu grid với options.scales trong initChart()
+      fallbackCtx.strokeStyle = "rgba(255,255,255,0.05)"; 
       fallbackCtx.lineWidth = 1;
       fallbackCtx.beginPath();
       fallbackCtx.moveTo(padLeft, y);
       fallbackCtx.lineTo(padLeft + plotW, y);
       fallbackCtx.stroke();
 
-      fallbackCtx.fillStyle = "#828ba3"; // cùng màu tick với options.scales trong initChart()
+      fallbackCtx.fillStyle = "#828ba3"; 
       fallbackCtx.fillText(String(g), padLeft - 6, y);
     });
 
-    // Vị trí X của điểm thứ i: scale theo số điểm hiện có (n) để đường luôn kéo dài
-    // hết chiều rộng canvas ngay từ ít dữ liệu, giống cách category-axis của Chart.js hoạt động
     function xAt(i) {
       return padLeft + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
     }
@@ -177,7 +167,7 @@
       fallbackCtx.textAlign = "center";
       fallbackCtx.textBaseline = "top";
       fallbackCtx.fillStyle = "#828ba3";
-      var maxLabels = 6; // giới hạn số mốc hiển thị để không bị chồng chữ, tương tự autoSkip của Chart.js
+      var maxLabels = 6; 
       var step = Math.max(1, Math.ceil(n / maxLabels));
       for (var i = 0; i < n; i += step) {
         fallbackCtx.fillText(fallbackData.labels[i], xAt(i), padTop + plotH + 6);
@@ -204,12 +194,25 @@
         fallbackCtx.lineCap = "round";
         fallbackCtx.beginPath();
         fallbackCtx.moveTo(pts[0].x, pts[0].y);
-        for (var i = 1; i < pts.length; i++) {
-          var midX = (pts[i - 1].x + pts[i].x) / 2;
-          var midY = (pts[i - 1].y + pts[i].y) / 2;
-          fallbackCtx.quadraticCurveTo(pts[i - 1].x, pts[i - 1].y, midX, midY);
+
+        if (pts.length === 2) {
+          fallbackCtx.lineTo(pts[1].x, pts[1].y);
+        } else {
+          for (var i = 0; i < pts.length - 1; i++) {
+            var p0 = pts[i - 1] || pts[i];
+            var p1 = pts[i];
+            var p2 = pts[i + 1];
+            var p3 = pts[i + 2] || p2;
+
+            var cp1x = p1.x + (p2.x - p0.x) / 6;
+            var cp1y = p1.y + (p2.y - p0.y) / 6;
+            var cp2x = p2.x - (p3.x - p1.x) / 6;
+            var cp2y = p2.y - (p3.y - p1.y) / 6;
+
+            fallbackCtx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+          }
         }
-        fallbackCtx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+
         fallbackCtx.stroke();
       }
 
@@ -264,7 +267,6 @@
   var hasLiveGeoFix = false;
 
   function initMap() {
-    // Kiểm tra nếu không có mạng, không tải được Leaflet thì bỏ qua để không bị crash JS
     if (typeof L === 'undefined') {
       console.warn("Không tải được Leaflet (Chế độ offline)");
       return;
@@ -359,17 +361,14 @@
       var haveHumi = typeof data.humidity === "number";
       var haveSoil = typeof data.soil_moisture === "number";
 
-      // Định dạng giống LCD: nhiệt độ 1 chữ số thập phân + °C
       if (haveTemp) els.temp.textContent = data.temperature.toFixed(1) + "\u00B0C";
 
-      // Định dạng giống LCD: độ ẩm 1 chữ số thập phân + %, riêng case >= 99.95 hiển thị "100%"
       if (haveHumi) {
         els.humi.textContent = (data.humidity >= 99.95)
           ? "100%"
           : data.humidity.toFixed(1) + "%";
       }
 
-      // Định dạng giống LCD: độ ẩm đất số nguyên, đệm 0 phía trước nếu < 10 (ví dụ 05%)
       if (haveSoil) {
         var soilVal = Math.round(data.soil_moisture);
         var soilStr = (soilVal < 10 ? "0" + soilVal : "" + soilVal);
@@ -377,11 +376,15 @@
       }
 
       if (haveTemp || haveHumi || haveSoil) {
-        pushChartPoint(
-          haveTemp ? data.temperature : (chart && chart.data.datasets[0].data.slice(-1)[0] || 0),
-          haveHumi ? data.humidity : (chart && chart.data.datasets[1].data.slice(-1)[0] || 0),
-          haveSoil ? data.soil_moisture : (chart && chart.data.datasets[2].data.slice(-1)[0] || 0)
-        );
+        var nowTs = Date.now();
+        if (nowTs - lastChartPushTime >= chartIntervalMs) {
+          lastChartPushTime = nowTs;
+          pushChartPoint(
+            haveTemp ? data.temperature : (chart && chart.data.datasets[0].data.slice(-1)[0] || 0),
+            haveHumi ? data.humidity : (chart && chart.data.datasets[1].data.slice(-1)[0] || 0),
+            haveSoil ? data.soil_moisture : (chart && chart.data.datasets[2].data.slice(-1)[0] || 0)
+          );
+        }
       }
 
       if (typeof data.pump_state === "string") {
@@ -436,10 +439,8 @@
 
   // 1. Xử lý sự kiện nút bấm PUMP (Bật / Tắt bơm thủ công)
   els.pumpToggleBtn.addEventListener("click", function () {
-    // Tính toán trạng thái tiếp theo dựa trên trạng thái hiện tại trên giao diện
     var nextState = state.pumpState === "ON" ? "OFF" : "ON";
 
-    // Gửi yêu cầu kèm tham số ?state=ON hoặc ?state=OFF để Firmware ESP32 nhận biết chính xác
     fetch("/toggle-pump?state=" + nextState)
       .then(function (r) { return r.text(); })
       .then(function (txt) {
@@ -447,7 +448,7 @@
         var finalState = (resState === "ON" || resState === "OFF") ? resState : nextState;
 
         setPumpBadge(finalState === "ON");
-        setModeBadge("MANUAL"); // Bất kể đang là gì, can thiệp PUMP sẽ lập tức chuyển giao diện sang chế độ MANUAL
+        setModeBadge("MANUAL"); 
       })
       .catch(function (err) {
         console.warn("Lỗi kết nối HTTP, tự động cập nhật trạng thái trên giao diện: ", err);
@@ -458,10 +459,8 @@
 
   // 2. Xử lý sự kiện nút bấm MODE (Chuyển đổi MANUAL <-> AUTO)
   els.modeToggleBtn.addEventListener("click", function () {
-    // Tính toán chế độ tiếp theo dựa trên chế độ hiện tại trên giao diện
     var nextMode = state.pumpMode === "MANUAL" ? "AUTO" : "MANUAL";
 
-    // Gửi yêu cầu cập nhật sang phía vi điều khiển ESP32
     fetch("/set-mode?mode=" + nextMode)
       .then(function (r) { return r.text(); })
       .then(function (txt) {
@@ -472,13 +471,14 @@
       })
       .catch(function (err) {
         console.warn("Lỗi kết nối HTTP khi thay đổi chế độ: ", err);
-        setModeBadge(nextMode); // Cơ chế dự phòng khi lỗi kết nối mạng
+        setModeBadge(nextMode); 
       });
   });
 
   // ---------- Boot ----------
   document.addEventListener("DOMContentLoaded", function () {
     initChart();
+    initChartIntervalControl();
     initMap();
     connectWS();
     pollStatus();

@@ -11,6 +11,8 @@
 
 extern AsyncWebServer server;
 extern AsyncWebSocket ws;
+extern String global_pump_state;   
+extern String global_pump_mode;    
 
 void Webserver_stop();
 void Webserver_reconnect();

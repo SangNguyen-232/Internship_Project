@@ -1,44 +1,64 @@
-// #include "pump.h"
-// #include "global.h"  
-// #define MAYBOM_PIN 6 
+#include "pump.h"
+#include "global.h"
+#include "task_webserver.h"   
 
-// void task_maybom(void *pvParameters) {
-//     pinMode(MAYBOM_PIN, OUTPUT);
-//     digitalWrite(MAYBOM_PIN, LOW);  
+#define MAYBOM_PIN 6
+#define PUMP_SOIL_THRESHOLD 30
 
-//     while (1) {
-//         float current_soil;
-//         bool current_manual_control;
-//         bool current_pump_state;
-        
-//         if (xSemaphoreTake(xMutexSensorData, portMAX_DELAY) == pdTRUE) {
-//             current_soil = glob_soil;
-//             xSemaphoreGive(xMutexSensorData);
-//         }
-        
-//         if (xSemaphoreTake(xMutexPumpControl, portMAX_DELAY) == pdTRUE) {
-//             current_manual_control = pump_manual_control;
-//             current_pump_state = pump_state;
+bool pump_manual_control = false;
+bool pump_manual_state = false;
+SemaphoreHandle_t xMutexPumpControl = xSemaphoreCreateMutex();
 
-            
-//             xSemaphoreGive(xMutexPumpControl);
-//         }
-        
-//         if (current_manual_control) {
-//             digitalWrite(MAYBOM_PIN, current_pump_state ? HIGH : LOW);
-//         } else {
-//             bool auto_state;
-//             if (current_pump_state) {
-//                 auto_state = (current_soil < pump_threshold_max);
-//             } else {
-//                 auto_state = (current_soil < pump_threshold_min);
-//             }
-//             digitalWrite(MAYBOM_PIN, auto_state ? HIGH : LOW);
-//             if (xSemaphoreTake(xMutexPumpControl, portMAX_DELAY) == pdTRUE) {
-//                 pump_state = auto_state;
-//                 xSemaphoreGive(xMutexPumpControl);
-//             }
-//         }
-//         vTaskDelay(100 / portTICK_PERIOD_MS);
-//     }
-// }
+void task_pump(void *pvParameters)
+{
+    SharedContext* ctx = (SharedContext*)pvParameters;
+
+    pinMode(MAYBOM_PIN, OUTPUT);
+    digitalWrite(MAYBOM_PIN, LOW);
+
+    bool last_reported_state = false;   
+
+    while (1) {
+        int current_soil = 0;
+        if (ctx != NULL) {
+            if (xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(200)) == pdTRUE) {
+                current_soil = ctx->soilMoisture;
+                xSemaphoreGive(ctx->mutexContext);
+            }
+        }
+
+        bool current_manual_control = false;
+        bool current_manual_state = false;
+        if (xSemaphoreTake(xMutexPumpControl, pdMS_TO_TICKS(200)) == pdTRUE) {
+            current_manual_control = pump_manual_control;
+            current_manual_state = pump_manual_state;
+            xSemaphoreGive(xMutexPumpControl);
+        }
+
+        bool new_state;
+        if (current_manual_control) {
+            new_state = current_manual_state;
+        } else {
+            new_state = (current_soil < PUMP_SOIL_THRESHOLD);
+        }
+
+        digitalWrite(MAYBOM_PIN, new_state ? HIGH : LOW);
+
+        if (new_state != last_reported_state) {
+            last_reported_state = new_state;
+
+            String modeStr;
+            if (xSemaphoreTake(xMutexPumpControl, pdMS_TO_TICKS(200)) == pdTRUE) {
+                global_pump_state = new_state ? "ON" : "OFF";
+                modeStr = global_pump_mode;
+                xSemaphoreGive(xMutexPumpControl);
+            }
+
+            String wsPayload = "{\"pump_state\":\"" + String(new_state ? "ON" : "OFF") +
+                                "\",\"pump_mode\":\"" + modeStr + "\"}";
+            Webserver_sendata(wsPayload);
+        }
+
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+    }
+}
