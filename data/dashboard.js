@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  var MAX_POINTS = 8;
+  var MAX_POINTS = 60;
   var DEFAULT_LAT = 10.880018;
   var DEFAULT_LNG = 106.806336;
 
@@ -38,6 +38,46 @@
 
   // ---------- Sensor chart ----------
   var chart = null;
+  var fallbackChart = false;
+  var fallbackData = { labels: [], temp: [], humi: [], soil: [] };
+  var fallbackCanvas = null, fallbackCtx = null;
+
+  // Khoảng thời gian giữa 2 điểm dữ liệu được vẽ lên biểu đồ (ms).
+  // Mặc định 5000ms = giữ đúng hành vi gốc (mỗi message WebSocket đều được vẽ).
+  var chartIntervalMs = 5000;
+  var lastChartPushTime = 0;
+
+  // Gắn dropdown chọn 5s/15s vào đúng ô "Refresh:" có sẵn trong card-header (không cần sửa HTML)
+  function initChartIntervalControl() {
+    var tag = document.querySelector(".chart-card .refresh-tag");
+    if (!tag) return;
+
+    var select = document.createElement("select");
+    select.id = "chartIntervalSelect";
+    select.style.marginLeft = "4px";
+    select.style.background = "var(--card-soft)";
+    select.style.color = "var(--text-muted)";
+    select.style.border = "1px solid var(--border)";
+    select.style.borderRadius = "6px";
+    select.style.fontSize = "12px";
+    select.style.padding = "1px 4px";
+
+    [["5000", "5s"], ["15000", "15s"]].forEach(function (opt) {
+      var o = document.createElement("option");
+      o.value = opt[0];
+      o.textContent = opt[1];
+      select.appendChild(o);
+    });
+    select.value = String(chartIntervalMs);
+
+    select.addEventListener("change", function () {
+      chartIntervalMs = parseInt(select.value, 10) || 5000;
+    });
+
+    tag.textContent = "Refresh:";
+    tag.appendChild(select);
+  }
+
   function nowLabel() {
     var now = new Date();
     var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
@@ -48,8 +88,9 @@
   function initChart() {
     // Kiểm tra nếu không có mạng, không tải được Chart thì bỏ qua để không bị crash JS
     if (typeof Chart === 'undefined') {
-      console.warn("Không tải được Chart.js (Chế độ offline)");
-      return; 
+      console.warn("Không tải được Chart.js (Chế độ offline) -> dùng canvas thuần");
+      initFallbackChart();
+      return;
     }
 
     var ctx = document.getElementById("sensorChart").getContext("2d");
@@ -76,7 +117,130 @@
     });
   }
 
+  // ---------- Fallback: canvas thuần (chỉ dùng khi không tải được Chart.js, vd: AP Mode) ----------
+  function initFallbackChart() {
+    fallbackChart = true;
+    fallbackCanvas = document.getElementById("sensorChart");
+    fallbackCtx = fallbackCanvas.getContext("2d");
+    resizeFallbackCanvas();
+    window.addEventListener("resize", resizeFallbackCanvas);
+  }
+
+  function resizeFallbackCanvas() {
+    if (!fallbackCanvas) return;
+    var rect = fallbackCanvas.parentElement.getBoundingClientRect();
+    fallbackCanvas.width = rect.width;
+    fallbackCanvas.height = rect.height;
+    drawFallbackChart();
+  }
+
+  function drawFallbackChart() {
+    if (!fallbackCtx) return;
+    var w = fallbackCanvas.width, h = fallbackCanvas.height;
+    if (!w || !h) return;
+    var n = fallbackData.labels.length;
+
+    // Chừa lề cho nhãn trục Y (trái) và mốc thời gian trục X (dưới),
+    // mô phỏng theo cấu hình scales.x / scales.y trong initChart() (Chart.js)
+    var padLeft = 34, padRight = 10, padTop = 10, padBottom = 20;
+    var plotW = w - padLeft - padRight;
+    var plotH = h - padTop - padBottom;
+
+    fallbackCtx.clearRect(0, 0, w, h);
+    fallbackCtx.font = "10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+    // ----- Lưới ngang + nhãn trục Y (0/25/50/75/100), giống scales.y của Chart.js -----
+    var yTicks = [0, 25, 50, 75, 100];
+    fallbackCtx.textAlign = "right";
+    fallbackCtx.textBaseline = "middle";
+    yTicks.forEach(function (g) {
+      var y = padTop + plotH - (g / 100) * plotH;
+      fallbackCtx.strokeStyle = "rgba(255,255,255,0.05)"; // cùng màu grid với options.scales trong initChart()
+      fallbackCtx.lineWidth = 1;
+      fallbackCtx.beginPath();
+      fallbackCtx.moveTo(padLeft, y);
+      fallbackCtx.lineTo(padLeft + plotW, y);
+      fallbackCtx.stroke();
+
+      fallbackCtx.fillStyle = "#828ba3"; // cùng màu tick với options.scales trong initChart()
+      fallbackCtx.fillText(String(g), padLeft - 6, y);
+    });
+
+    // Vị trí X của điểm thứ i: scale theo số điểm hiện có (n) để đường luôn kéo dài
+    // hết chiều rộng canvas ngay từ ít dữ liệu, giống cách category-axis của Chart.js hoạt động
+    function xAt(i) {
+      return padLeft + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+    }
+
+    // ----- Mốc thời gian trên trục X: lấy từ fallbackData.labels (đã ghi sẵn ở pushChartPoint) -----
+    if (n > 0) {
+      fallbackCtx.textAlign = "center";
+      fallbackCtx.textBaseline = "top";
+      fallbackCtx.fillStyle = "#828ba3";
+      var maxLabels = 6; // giới hạn số mốc hiển thị để không bị chồng chữ, tương tự autoSkip của Chart.js
+      var step = Math.max(1, Math.ceil(n / maxLabels));
+      for (var i = 0; i < n; i += step) {
+        fallbackCtx.fillText(fallbackData.labels[i], xAt(i), padTop + plotH + 6);
+      }
+      if ((n - 1) % step !== 0) {
+        fallbackCtx.fillText(fallbackData.labels[n - 1], xAt(n - 1), padTop + plotH + 6); // luôn hiện mốc mới nhất
+      }
+    }
+
+    // ----- Vẽ từng series: đường cong mượt (mô phỏng tension: 0.35) + điểm đánh dấu (giống pointRadius: 3) -----
+    function drawSeries(values, color) {
+      if (values.length === 0) return;
+      var pts = values.map(function (v, i) {
+        return {
+          x: xAt(i),
+          y: padTop + plotH - (Math.max(0, Math.min(100, v)) / 100) * plotH,
+        };
+      });
+
+      if (pts.length >= 2) {
+        fallbackCtx.strokeStyle = color;
+        fallbackCtx.lineWidth = 2;
+        fallbackCtx.lineJoin = "round";
+        fallbackCtx.lineCap = "round";
+        fallbackCtx.beginPath();
+        fallbackCtx.moveTo(pts[0].x, pts[0].y);
+        for (var i = 1; i < pts.length; i++) {
+          var midX = (pts[i - 1].x + pts[i].x) / 2;
+          var midY = (pts[i - 1].y + pts[i].y) / 2;
+          fallbackCtx.quadraticCurveTo(pts[i - 1].x, pts[i - 1].y, midX, midY);
+        }
+        fallbackCtx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+        fallbackCtx.stroke();
+      }
+
+      fallbackCtx.fillStyle = color;
+      pts.forEach(function (p) {
+        fallbackCtx.beginPath();
+        fallbackCtx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        fallbackCtx.fill();
+      });
+    }
+
+    drawSeries(fallbackData.temp, "#f5a524"); // var(--c-temp)
+    drawSeries(fallbackData.humi, "#4aa3ff"); // var(--c-humi)
+    drawSeries(fallbackData.soil, "#2ecc71"); // var(--c-soil)
+  }
+
   function pushChartPoint(temp, humi, soil) {
+    if (fallbackChart) {
+      fallbackData.labels.push(nowLabel());
+      fallbackData.temp.push(temp);
+      fallbackData.humi.push(humi);
+      fallbackData.soil.push(soil);
+      if (fallbackData.labels.length > MAX_POINTS) {
+        fallbackData.labels.shift();
+        fallbackData.temp.shift();
+        fallbackData.humi.shift();
+        fallbackData.soil.shift();
+      }
+      drawFallbackChart();
+      return;
+    }
     if (!chart) return;
     var labels = chart.data.labels;
     var d = chart.data.datasets;
@@ -253,7 +417,7 @@
       .then(function (r) { return r.json(); })
       .then(function (s) {
         els.coreiotDot.className = "dot " + (s.mqtt_connected ? "online" : "offline");
-        
+
         var apOverlay = document.getElementById("apModeOverlay");
         if (apOverlay) {
           if (s.is_ap_mode) {
@@ -269,19 +433,19 @@
   }
 
   // ---------- Toggle buttons ----------
-  
+
   // 1. Xử lý sự kiện nút bấm PUMP (Bật / Tắt bơm thủ công)
   els.pumpToggleBtn.addEventListener("click", function () {
     // Tính toán trạng thái tiếp theo dựa trên trạng thái hiện tại trên giao diện
     var nextState = state.pumpState === "ON" ? "OFF" : "ON";
-    
+
     // Gửi yêu cầu kèm tham số ?state=ON hoặc ?state=OFF để Firmware ESP32 nhận biết chính xác
     fetch("/toggle-pump?state=" + nextState)
       .then(function (r) { return r.text(); })
       .then(function (txt) {
         var resState = txt.trim().toUpperCase();
         var finalState = (resState === "ON" || resState === "OFF") ? resState : nextState;
-        
+
         setPumpBadge(finalState === "ON");
         setModeBadge("MANUAL"); // Bất kể đang là gì, can thiệp PUMP sẽ lập tức chuyển giao diện sang chế độ MANUAL
       })
@@ -296,14 +460,14 @@
   els.modeToggleBtn.addEventListener("click", function () {
     // Tính toán chế độ tiếp theo dựa trên chế độ hiện tại trên giao diện
     var nextMode = state.pumpMode === "MANUAL" ? "AUTO" : "MANUAL";
-    
+
     // Gửi yêu cầu cập nhật sang phía vi điều khiển ESP32
     fetch("/set-mode?mode=" + nextMode)
       .then(function (r) { return r.text(); })
       .then(function (txt) {
         var resMode = txt.trim().toUpperCase();
         var finalMode = (resMode === "MANUAL" || resMode === "AUTO") ? resMode : nextMode;
-        
+
         setModeBadge(finalMode);
       })
       .catch(function (err) {
