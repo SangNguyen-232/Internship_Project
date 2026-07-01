@@ -4,9 +4,8 @@
 #include "led_blinky.h"
 #include "neo_blinky.h"
 #include "temp_humi_monitor.h"
-// #include "mainserver.h"
 #include "tinyml.h"
-// #include "task_database.h"
+#include "task_database.h"
 
 // include task
 #include "task_check_info.h"
@@ -41,7 +40,7 @@ void setup()
   // xTaskCreate(main_server_task, "Task Main Server" ,8192  ,NULL  ,2 , NULL);
   xTaskCreate(tiny_ml_task, "Tiny ML Task", 8192, (void *)ctx, 2, NULL);
   xTaskCreate(task_pump, "Task Pump", 2048, (void *)ctx, 2, NULL);   // [THÊM]  
-  // xTaskCreate(task_database, "Task Database", 4096, (void*)ctx, 2, NULL);
+  xTaskCreate(task_database, "Task Database", 4096, (void*)ctx, 2, NULL);
   // xTaskCreate(Task_Toogle_BOOT, "Task_Toogle_BOOT", 4096, NULL, 2, NULL);
 }
 

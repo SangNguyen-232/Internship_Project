@@ -2,8 +2,8 @@
 #include "global.h"
 #include "task_webserver.h"   
 
-#define MAYBOM_PIN 6
-#define PUMP_SOIL_THRESHOLD 30
+#define PUMP_PIN 10
+#define PUMP_SOIL_THRESHOLD 5
 
 bool pump_manual_control = false;
 bool pump_manual_state = false;
@@ -13,8 +13,8 @@ void task_pump(void *pvParameters)
 {
     SharedContext* ctx = (SharedContext*)pvParameters;
 
-    pinMode(MAYBOM_PIN, OUTPUT);
-    digitalWrite(MAYBOM_PIN, LOW);
+    pinMode(PUMP_PIN, OUTPUT);
+    digitalWrite(PUMP_PIN, LOW);
 
     bool last_reported_state = false;   
 
@@ -42,7 +42,7 @@ void task_pump(void *pvParameters)
             new_state = (current_soil < PUMP_SOIL_THRESHOLD);
         }
 
-        digitalWrite(MAYBOM_PIN, new_state ? HIGH : LOW);
+        digitalWrite(PUMP_PIN, new_state ? HIGH : LOW);
 
         if (new_state != last_reported_state) {
             last_reported_state = new_state;

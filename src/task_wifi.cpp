@@ -30,6 +30,10 @@ void startSTA()
     {
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
+
+    Serial.print("STA IP address: ");
+    Serial.println(WiFi.localIP());
+
     //Give a semaphore here
     xSemaphoreGive(xBinarySemaphoreInternet);
 }

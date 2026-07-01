@@ -475,6 +475,52 @@
       });
   });
 
+  // ---------- Settings modal (WiFi config) ----------
+  var settingsNavBtn = document.getElementById("settingsNavBtn");
+  var settingsModal = document.getElementById("settingsModal");
+  var settingsCloseBtn = document.getElementById("settingsCloseBtn");
+  var wifiSettingsForm = document.getElementById("wifiSettingsForm");
+  var wifiSettingsMsg = document.getElementById("wifiSettingsMsg");
+
+  function openSettingsModal(e) {
+    if (e) e.preventDefault();
+    if (settingsModal) settingsModal.style.display = "flex";
+  }
+
+  function closeSettingsModal() {
+    if (settingsModal) settingsModal.style.display = "none";
+  }
+
+  if (settingsNavBtn) settingsNavBtn.addEventListener("click", openSettingsModal);
+  if (settingsCloseBtn) settingsCloseBtn.addEventListener("click", closeSettingsModal);
+
+  if (wifiSettingsForm) {
+    wifiSettingsForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var ssid = document.getElementById("wifiSsid").value;
+      var pass = document.getElementById("wifiPass").value;
+
+      // Định dạng payload đúng theo handleWebSocketMessage() trong task_handler.cpp
+      var payload = {
+        page: "setting",
+        value: {
+          ssid: ssid,
+          password: pass,
+          token: "",
+          server: "",
+          port: ""
+        }
+      };
+
+      if (activeWs && activeWs.readyState === WebSocket.OPEN) {
+        activeWs.send(JSON.stringify(payload));
+        wifiSettingsMsg.textContent = "Đã gửi cấu hình. Thiết bị sẽ khởi động lại...";
+      } else {
+        wifiSettingsMsg.textContent = "Chưa kết nối WebSocket, vui lòng thử lại.";
+      }
+    });
+  }
+
   // ---------- Boot ----------
   document.addEventListener("DOMContentLoaded", function () {
     initChart();
