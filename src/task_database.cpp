@@ -6,7 +6,7 @@
 
 #define DB_SEND_INTERVAL_MS 5000
 
-static const char *DB_URL = "https://webhook.site/6e60a994-1fda-47db-baaf-2e9ffc566e51";
+static const char *DB_URL = "https://webhook.site/e3eee19b-be20-44d6-bd7b-da0aad7ff81a";
 
 static String formatTimestamp(time_t t)
 {
@@ -36,6 +36,8 @@ void task_database(void *pvParameters)
         float mlConfidence = 0;
         time_t timestampReal = 0;
         String pumpState, modeState;
+        char mlStatus[16] = "Mismatch";
+        float mlRollAcc = 0;
 
         if (ctx != NULL && xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(2000)) == pdTRUE)
         {
@@ -48,6 +50,8 @@ void task_database(void *pvParameters)
             mlPredicted = ctx->mlPredicted;
             mlConfidence = ctx->mlConfidence;
             timestampReal = ctx->timestampReal;
+            strncpy(mlStatus, ctx->mlStatus, sizeof(mlStatus) - 1);
+            mlRollAcc = ctx->mlRollAcc;
             xSemaphoreGive(ctx->mutexContext);
         }
 
@@ -56,16 +60,18 @@ void task_database(void *pvParameters)
 
         time_t timestampUp = time(nullptr);
 
-        String payload = "{";
-        payload += "\"timestamp_real\":\"" + formatTimestamp(timestampReal) + "\",";
-        payload += "\"timestamp_up\":\"" + formatTimestamp(timestampUp) + "\",";
-        payload += "\"temperature (°C)\":" + String(temperature, 2) + ",";
-        payload += "\"humidity (%)\":" + String(humidity, 2) + ",";
-        payload += "\"soil_moisture ()\":" + String(soilMoisture) + ",";
-        payload += "\"PUMP_state\":\"" + pumpState + "\",";
-        payload += "\"MODE_state\":\"" + modeState + "\",";
-        payload += "\"s\":" + String(mlConfidence, 4) + ",";
-        payload += "\"roll_acc\":null";
+        String payload = "{\n";
+        payload += "  \"timestamp_real\":\"" + formatTimestamp(timestampReal) + "\"\n"; 
+        payload += "  \"timestamp_up\":\"" + formatTimestamp(timestampUp) + "\"\n";     
+        payload += "  \"temperature\":" + String(temperature, 2) + "°C\n";               
+        payload += "  \"humidity\":" + String(humidity, 2) + "%\n";                    
+        char soilBuf[8];
+        snprintf(soilBuf, sizeof(soilBuf), "%02d", soilMoisture);
+        payload += "  \"soil_moisture\":" + String(soilBuf) + "%\n";
+        payload += "  \"PUMP_state\":\"" + pumpState + "\"\n";                         
+        payload += "  \"MODE_state\":\"" + modeState + "\"\n";                         
+        payload += "  \"Message\":" + String(mlStatus) + "\n";
+        payload += "  \"Score\":" + String(mlRollAcc >= 100.0f ? "100" : String(mlRollAcc, 2)) + "%\n";
         payload += "}";
 
         HTTPClient http;

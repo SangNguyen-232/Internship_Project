@@ -165,6 +165,14 @@ void tiny_ml_task(void *pvParameters)
             else if (expected == 3) status = "Critical";
         }
 
+        if (xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(200)) == pdTRUE)
+        {
+            strncpy(ctx->mlStatus, status, sizeof(ctx->mlStatus) - 1);
+            ctx->mlStatus[sizeof(ctx->mlStatus) - 1] = '\0';
+            ctx->mlRollAcc = inferences ? (100.0f * (float)correct / (float)inferences) : 0.0f;
+            xSemaphoreGive(ctx->mutexContext);
+        }
+
         serialLogLock();
         Serial.printf("TinyML T=%.1f°C H=%.1f%% | rule=%d pred=%d | %s | p=[%.2f,%.2f,%.2f] | %lums | roll_acc=%.1f%% (%lu/%lu)\n",
                       temperature, humidity, expected, predicted,
