@@ -2,12 +2,9 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include "serial_log.h"
+#include "task_webserver.h" 
 
 #define DB_SEND_INTERVAL_MS 5000
-
-// // ====== CẤU HÌNH SUPABASE (đang không dùng, để test bằng webhook.site) ======
-// static const char *SUPABASE_URL = "https://xxxxx.supabase.co/rest/v1/telemetry";
-// static const char *SUPABASE_API_KEY = "eyJhbGciOi..."; // anon public key
 
 static const char *DB_URL = "https://webhook.site/2e806367-7dbb-42c5-8b15-08e6b0c8ed84";
 void task_database(void *pvParameters)
@@ -26,6 +23,8 @@ void task_database(void *pvParameters)
         int soilMoisture = 0, ledState = 1, neoState = 1, lcdState = 1;
         int mlPredicted = 0;
         float mlConfidence = 0;
+        time_t timestampReal = 0;   
+        String pumpState, modeState; 
 
         if (ctx != NULL && xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(2000)) == pdTRUE)
         {
@@ -37,18 +36,25 @@ void task_database(void *pvParameters)
             lcdState = ctx->lcdState;
             mlPredicted = ctx->mlPredicted;
             mlConfidence = ctx->mlConfidence;
+            timestampReal = ctx->timestampReal;   
             xSemaphoreGive(ctx->mutexContext);
         }
 
+        pumpState = global_pump_state;   
+        modeState = global_pump_mode;   
+
+        time_t timestampUp = time(nullptr);  
+
         String payload = "{";
-        payload += "\"temperature\":" + String(temperature, 2) + "°C ,";
-        payload += "\"humidity\":" + String(humidity, 2) + "% ,";
-        payload += "\"soil_moisture\":" + String(soilMoisture, 2) + "% ,";
-        // payload += "\"led_state\":" + String(ledState) + ",";
-        // payload += "\"neo_state\":" + String(neoState) + ",";
-        // payload += "\"lcd_state\":" + String(lcdState) + ",";
-        // payload += "\"ml_predicted\":" + String(mlPredicted) + ",";
-        // payload += "\"ml_confidence\":" + String(mlConfidence, 3);
+        payload += "\"timestamp_real\":" + String((long)timestampReal) + ",";
+        payload += "\"timestamp_up\":" + String((long)timestampUp) + ",";
+        payload += "\"temperature (°C)\":" + String(temperature, 2) + ",";
+        payload += "\"humidity (%)\":" + String(humidity, 2) + ",";
+        payload += "\"soil_moisture (%)\":" + String(soilMoisture) + ",";
+        payload += "\"PUMP_state\":\"" + pumpState + "\",";
+        payload += "\"MODE_state\":\"" + modeState + "\",";
+        payload += "\"s\":" + String(mlConfidence, 4) + ",";
+        payload += "\"roll_acc\":null"; 
         payload += "}";
 
         HTTPClient http;

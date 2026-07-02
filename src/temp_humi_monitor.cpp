@@ -55,6 +55,12 @@ void temp_humi_monitor(void *pvParameters) {
             ctx->humidity = humidity;
             ctx->soilMoisture = soil_moisture;
 
+            if (WiFi.status() == WL_CONNECTED) {
+                ctx->timestampReal = time(nullptr);
+            } else {
+                ctx->timestampReal = 0;  // AP Mode: không có timestamp thực
+            }
+
             const int newLedState = risk_led_state_from_temperature(temperature);
             if (newLedState != ctx->ledState) {
                 ctx->ledState = newLedState;

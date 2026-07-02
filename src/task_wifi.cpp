@@ -34,6 +34,8 @@ void startSTA()
     Serial.print("STA IP address: ");
     Serial.println(WiFi.localIP());
 
+    configTime(7 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+
     //Give a semaphore here
     xSemaphoreGive(xBinarySemaphoreInternet);
 }
