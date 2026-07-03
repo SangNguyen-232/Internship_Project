@@ -1,7 +1,14 @@
 #include "task_check_info.h"
+#include "esp_log.h"
 
 void Load_info_File()
 {
+  bool exists = LittleFS.exists("/info.dat");
+
+  if (!exists)
+  {
+    return;
+  }
   File file = LittleFS.open("/info.dat", "r");
   if (!file)
   {
@@ -11,16 +18,10 @@ void Load_info_File()
   DeserializationError error = deserializeJson(doc, file);
   if (error)
   {
-    Serial.print(F("deserializeJson() failed: "));
+    return;
   }
-  else
-  {
-    WIFI_SSID = strdup(doc["WIFI_SSID"]);
-    WIFI_PASS = strdup(doc["WIFI_PASS"]);
-    CORE_IOT_TOKEN = strdup(doc["CORE_IOT_TOKEN"]);
-    CORE_IOT_SERVER = strdup(doc["CORE_IOT_SERVER"]);
-    CORE_IOT_PORT = strdup(doc["CORE_IOT_PORT"]);
-  }
+  WIFI_SSID = strdup(doc["WIFI_SSID"]);
+  WIFI_PASS = strdup(doc["WIFI_PASS"]);
   file.close();
 }
 
@@ -30,6 +31,10 @@ void Delete_info_File()
   {
     LittleFS.remove("/info.dat");
   }
+
+  Serial.println("The device has been successfully reset.");
+  Serial.flush();
+  delay(100);
   ESP.restart();
 }
 
@@ -37,7 +42,6 @@ void Save_info_File(String wifi_ssid, String wifi_pass, String CORE_IOT_TOKEN, S
 {
   Serial.println(wifi_ssid);
   Serial.println(wifi_pass);
-
   DynamicJsonDocument doc(4096);
   doc["WIFI_SSID"] = wifi_ssid;
   doc["WIFI_PASS"] = wifi_pass;
@@ -51,10 +55,6 @@ void Save_info_File(String wifi_ssid, String wifi_pass, String CORE_IOT_TOKEN, S
     serializeJson(doc, configFile);
     configFile.close();
   }
-  else
-  {
-    Serial.println("Unable to save the configuration.");
-  }
   ESP.restart();
 };
 
@@ -64,7 +64,6 @@ bool check_info_File(bool check)
   {
     if (!LittleFS.begin(true))
     {
-      Serial.println("❌ Lỗi khởi động LittleFS!");
       return false;
     }
     Load_info_File();

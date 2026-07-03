@@ -61,17 +61,17 @@ void task_database(void *pvParameters)
         time_t timestampUp = time(nullptr);
 
         String payload = "{\n";
-        payload += "  \"timestamp_real\":\"" + formatTimestamp(timestampReal) + "\"\n"; 
-        payload += "  \"timestamp_up\":\"" + formatTimestamp(timestampUp) + "\"\n";     
-        payload += "  \"temperature\":" + String(temperature, 2) + "°C\n";               
-        payload += "  \"humidity\":" + String(humidity, 2) + "%\n";                    
+        payload += "  \"timestamp_real\":\"" + formatTimestamp(timestampReal) + "\",\n"; 
+        payload += "  \"timestamp_up\":\"" + formatTimestamp(timestampUp) + "\",\n";     
+        payload += "  \"temperature\":\"" + String(temperature, 2) + "°C\",\n";               
+        payload += "  \"humidity\":\"" + String(humidity, 2) + "%\",\n";                    
         char soilBuf[8];
         snprintf(soilBuf, sizeof(soilBuf), "%02d", soilMoisture);
-        payload += "  \"soil_moisture\":" + String(soilBuf) + "%\n";
-        payload += "  \"PUMP_state\":\"" + pumpState + "\"\n";                         
-        payload += "  \"MODE_state\":\"" + modeState + "\"\n";                         
-        payload += "  \"Message\":" + String(mlStatus) + "\n";
-        payload += "  \"Score\":" + String(mlRollAcc >= 100.0f ? "100" : String(mlRollAcc, 2)) + "%\n";
+        payload += "  \"soil_moisture\":\"" + String(soilBuf) + "%\",\n";
+        payload += "  \"PUMP_state\":\"" + pumpState + "\",\n";                         
+        payload += "  \"MODE_state\":\"" + modeState + "\",\n";                         
+        payload += "  \"Message\":\"" + String(mlStatus) + "\",\n";
+        payload += "  \"Score\":\"" + String(mlRollAcc >= 100.0f ? "100" : String(mlRollAcc, 2)) + "%\"\n";
         payload += "}";
 
         HTTPClient http;
@@ -81,13 +81,13 @@ void task_database(void *pvParameters)
 
         int httpCode = http.POST(payload);
 
+        // No serial output for database transmissions.
         serialLogLock();
         if (httpCode > 0)
             Serial.printf("[DB] POST -> %d\n", httpCode);
         else
             Serial.printf("[DB] POST failed: %s\n", http.errorToString(httpCode).c_str());
         serialLogUnlock();
-
         http.end();
         vTaskDelay(pdMS_TO_TICKS(DB_SEND_INTERVAL_MS));
     }

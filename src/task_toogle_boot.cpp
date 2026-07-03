@@ -5,6 +5,7 @@
 void Task_Toogle_BOOT(void *pvParameters)
 {
     unsigned long buttonPressStartTime = 0;
+    pinMode(BOOT, INPUT_PULLUP);   
     while (true)
     {
         if (digitalRead(BOOT) == LOW)

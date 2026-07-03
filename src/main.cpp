@@ -1,5 +1,6 @@
 #include "global.h"
 #include "serial_log.h"
+#include "esp_log.h"
 
 #include "led_blinky.h"
 #include "neo_blinky.h"
@@ -18,6 +19,7 @@ void setup()
 {
   Serial.begin(115200);
   serialLogInit();
+  esp_log_level_set("*", ESP_LOG_NONE);
   check_info_File(0);
 
   SharedContext* ctx = new SharedContext();
@@ -36,8 +38,8 @@ void setup()
   xTaskCreate(led_blinky, "Task LED Blink", 2048, (void*)ctx, 2, NULL);
   xTaskCreate(neo_blinky, "Task NEO Blink", 2048, (void*)ctx, 2, NULL);
   xTaskCreate(temp_humi_monitor, "Task TEMP HUMI Monitor", 2048, (void*)ctx, 2, NULL);
-  xTaskCreate(tiny_ml_task, "Tiny ML Task", 8192, (void *)ctx, 2, NULL);
-  xTaskCreate(task_pump, "Task Pump", 2048, (void *)ctx, 2, NULL);   
+  xTaskCreate(task_pump, "Task Pump", 2048, (void *)ctx, 2, NULL); 
+  xTaskCreate(tiny_ml_task, "Tiny ML Task", 8192, (void *)ctx, 2, NULL);  
   xTaskCreate(task_database, "Task Database", 4096, (void*)ctx, 2, NULL);
   xTaskCreate(Task_Toogle_BOOT, "Task_Toogle_BOOT", 4096, NULL, 2, NULL);
 }
