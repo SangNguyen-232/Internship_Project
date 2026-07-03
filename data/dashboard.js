@@ -404,6 +404,10 @@
       if (typeof data.lat === "number" && typeof data.long === "number") {
         updateMap(data.lat, data.long);
       }
+
+      if (data.page === "setting_saved" && data.status === "OK") {
+        if (wifiSettingsMsg) wifiSettingsMsg.textContent = "Cấu hình thành công";
+      }
     };
 
     ws.onclose = function () {

@@ -10,25 +10,36 @@ void startAP()
 
 void startSTA()
 {
-    if (WIFI_SSID.isEmpty())
+    if (wifiCredentialCount == 0)
     {
         vTaskDelete(NULL);
     }
 
     WiFi.mode(WIFI_STA);
 
-    if (WIFI_PASS.isEmpty())
+    for (int i = 0; i < wifiCredentialCount; i++)
     {
-        WiFi.begin(WIFI_SSID.c_str());
-    }
-    else
-    {
-        WiFi.begin(WIFI_SSID.c_str(), WIFI_PASS.c_str());
+        const String &ssid = wifiCredentials[i].ssid;
+        const String &pass = wifiCredentials[i].pass;
+        if (ssid.isEmpty()) continue;
+
+        if (pass.isEmpty())
+            WiFi.begin(ssid.c_str());
+        else
+            WiFi.begin(ssid.c_str(), pass.c_str());
+
+        unsigned long start = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - start < 10000)
+        {
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+        }
+
+        if (WiFi.status() == WL_CONNECTED) break;
     }
 
-    while (WiFi.status() != WL_CONNECTED)
+    if (WiFi.status() != WL_CONNECTED)
     {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelete(NULL);
     }
 
     Serial.print("STA IP address: ");
@@ -36,7 +47,6 @@ void startSTA()
 
     configTime(7 * 3600, 0, "pool.ntp.org", "time.nist.gov");
 
-    //Give a semaphore here
     xSemaphoreGive(xBinarySemaphoreInternet);
 }
 

@@ -38,11 +38,9 @@ void handleWebSocketMessage(String message)
         Serial.println("SSID: " + WIFI_SSID);
         Serial.println("PASS: " + WIFI_PASS);
 
-        // 👉 Gọi hàm lưu cấu hình
-        Save_info_File(WIFI_SSID, WIFI_PASS);
-
-        // Phản hồi lại client (tùy chọn)
         String msg = "{\"status\":\"ok\",\"page\":\"setting_saved\"}";
         ws.textAll(msg);
+
+        Save_info_File(WIFI_SSID, WIFI_PASS);
     }
 }

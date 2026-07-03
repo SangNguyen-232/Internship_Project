@@ -1,6 +1,8 @@
 #ifndef __GLOBAL_H__
 #define __GLOBAL_H__
 
+#define WIFI_MAX_CREDENTIALS 5
+
 #include <Arduino.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -29,8 +31,13 @@ extern float glob_temperature;
 extern float glob_humidity;
 extern float glob_soil;
 
-extern String WIFI_SSID;
-extern String WIFI_PASS;
+struct WifiCredential {
+    String ssid;
+    String pass;
+};
+
+extern WifiCredential wifiCredentials[WIFI_MAX_CREDENTIALS];
+extern int wifiCredentialCount;
 
 extern boolean isWifiConnected;
 extern SemaphoreHandle_t xBinarySemaphoreInternet;

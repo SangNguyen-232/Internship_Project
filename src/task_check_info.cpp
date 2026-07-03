@@ -4,24 +4,23 @@
 void Load_info_File()
 {
   bool exists = LittleFS.exists("/info.dat");
+  if (!exists) return;
 
-  if (!exists)
-  {
-    return;
-  }
   File file = LittleFS.open("/info.dat", "r");
-  if (!file)
-  {
-    return;
-  }
+  if (!file) return;
+
   DynamicJsonDocument doc(4096);
   DeserializationError error = deserializeJson(doc, file);
-  if (error)
+  if (error) { file.close(); return; }
+
+  wifiCredentialCount = 0;
+  for (JsonObject obj : doc.as<JsonArray>())
   {
-    return;
+    if (wifiCredentialCount >= WIFI_MAX_CREDENTIALS) break;
+    wifiCredentials[wifiCredentialCount].ssid = obj["WIFI_SSID"].as<String>();
+    wifiCredentials[wifiCredentialCount].pass = obj["WIFI_PASS"].as<String>();
+    wifiCredentialCount++;
   }
-  WIFI_SSID = strdup(doc["WIFI_SSID"]);
-  WIFI_PASS = strdup(doc["WIFI_PASS"]);
   file.close();
 }
 
@@ -42,9 +41,38 @@ void Save_info_File(String wifi_ssid, String wifi_pass)
 {
   Serial.println(wifi_ssid);
   Serial.println(wifi_pass);
+
+  int idx = -1;
+  for (int i = 0; i < wifiCredentialCount; i++)
+  {
+    if (wifiCredentials[i].ssid == wifi_ssid) { idx = i; break; }
+  }
+  if (idx >= 0)
+  {
+    for (int i = idx; i < wifiCredentialCount - 1; i++)
+      wifiCredentials[i] = wifiCredentials[i + 1];
+    wifiCredentialCount--;
+  }
+
+  int keep = wifiCredentialCount;
+  if (keep >= WIFI_MAX_CREDENTIALS)
+    keep = WIFI_MAX_CREDENTIALS - 1; 
+
+  for (int i = keep; i > 0; i--)
+    wifiCredentials[i] = wifiCredentials[i - 1];
+
+  wifiCredentials[0].ssid = wifi_ssid;
+  wifiCredentials[0].pass = wifi_pass;
+  wifiCredentialCount = keep + 1;
+
   DynamicJsonDocument doc(4096);
-  doc["WIFI_SSID"] = wifi_ssid;
-  doc["WIFI_PASS"] = wifi_pass;
+  JsonArray arr = doc.to<JsonArray>();
+  for (int i = 0; i < wifiCredentialCount; i++)
+  {
+    JsonObject obj = arr.createNestedObject();
+    obj["WIFI_SSID"] = wifiCredentials[i].ssid;
+    obj["WIFI_PASS"] = wifiCredentials[i].pass;
+  }
 
   File configFile = LittleFS.open("/info.dat", "w");
   if (configFile)
@@ -65,8 +93,8 @@ bool check_info_File(bool check)
     }
     Load_info_File();
   }
-  
-  if (WIFI_SSID.isEmpty() && WIFI_PASS.isEmpty())
+
+  if (wifiCredentialCount == 0)
   {
     if (!check)
     {
