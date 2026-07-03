@@ -33,16 +33,13 @@ void handleWebSocketMessage(String message)
     {
         String WIFI_SSID = doc["value"]["ssid"].as<String>();
         String WIFI_PASS = doc["value"]["password"].as<String>();
-        String CORE_IOT_TOKEN = doc["value"]["token"].as<String>();
-        String CORE_IOT_SERVER = doc["value"]["server"].as<String>();
-        String CORE_IOT_PORT = doc["value"]["port"].as<String>();
 
         Serial.println("📥 Nhận cấu hình từ WebSocket:");
         Serial.println("SSID: " + WIFI_SSID);
         Serial.println("PASS: " + WIFI_PASS);
 
         // 👉 Gọi hàm lưu cấu hình
-        Save_info_File(WIFI_SSID, WIFI_PASS, CORE_IOT_TOKEN, CORE_IOT_SERVER, CORE_IOT_PORT);
+        Save_info_File(WIFI_SSID, WIFI_PASS);
 
         // Phản hồi lại client (tùy chọn)
         String msg = "{\"status\":\"ok\",\"page\":\"setting_saved\"}";

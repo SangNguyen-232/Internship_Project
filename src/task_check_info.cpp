@@ -38,16 +38,13 @@ void Delete_info_File()
   ESP.restart();
 }
 
-void Save_info_File(String wifi_ssid, String wifi_pass, String CORE_IOT_TOKEN, String CORE_IOT_SERVER, String CORE_IOT_PORT)
+void Save_info_File(String wifi_ssid, String wifi_pass)
 {
   Serial.println(wifi_ssid);
   Serial.println(wifi_pass);
   DynamicJsonDocument doc(4096);
   doc["WIFI_SSID"] = wifi_ssid;
   doc["WIFI_PASS"] = wifi_pass;
-  doc["CORE_IOT_TOKEN"] = CORE_IOT_TOKEN;
-  doc["CORE_IOT_SERVER"] = CORE_IOT_SERVER;
-  doc["CORE_IOT_PORT"] = CORE_IOT_PORT;
 
   File configFile = LittleFS.open("/info.dat", "w");
   if (configFile)

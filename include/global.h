@@ -31,9 +31,6 @@ extern float glob_soil;
 
 extern String WIFI_SSID;
 extern String WIFI_PASS;
-extern String CORE_IOT_TOKEN;
-extern String CORE_IOT_SERVER;
-extern String CORE_IOT_PORT;
 
 extern boolean isWifiConnected;
 extern SemaphoreHandle_t xBinarySemaphoreInternet;
