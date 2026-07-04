@@ -7,7 +7,7 @@ Cách dùng:
     Get-ChildItem -Path "$env:USERPROFILE\.platformio" -Recurse -Filter "default_8MB.csv" | Select-Object FullName
 
 2. Mở file theo đường dẫn, lấy đúng Offset và Size của spiffs, dùng để chỉ định chính xác Offset và Size của phân vùng SPIFFS/LittleFS trên flash
-    python scripts/pull_wifi_info.py --port COM7 --offset ..... --size .....      
+    python scripts/pull_wifi_info.py --port COM7 --offset ..... --size .....
 
 3. Sử dụng lệnh sau khi cấu hình mặc định đã phù hợp và hệ thống có thể đọc/mount filesystem thành công
     python scripts/pull_wifi_info.py --port COM7
@@ -23,7 +23,6 @@ SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 OUTPUT_PATH  = os.path.join(PROJECT_ROOT, "data", "wifi_info.json")
 
-# Đúng với partition table thực tế của board (đã xác nhận)
 DEFAULT_OFFSET = "0x670000"
 DEFAULT_SIZE   = "0x180000"
 DEFAULT_BAUD   = "921600"
@@ -68,7 +67,6 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         fs_bin = os.path.join(tmpdir, "littlefs.bin")
 
-        # Bước 1: Đọc partition LittleFS từ flash thiết bị
         run([
             sys.executable, "-m", "esptool",
             "--port",  args.port,
@@ -84,7 +82,6 @@ def main() -> None:
 
     size_int = int(args.size, 16)
 
-    # Bước 2: Mount LittleFS image
     fs = None
     for bs in BLOCK_SIZE_CANDIDATES:
         fs = try_mount(raw, size_int, bs)
@@ -95,25 +92,25 @@ def main() -> None:
         print("Không thể mount LittleFS image. Kiểm tra lại --offset và --size.")
         sys.exit(1)
 
-    # Bước 3: Đọc /info.dat (tên file thực tế trên thiết bị)
     try:
         with fs.open("/info.dat", "r") as src:
             content = src.read()
     except FileNotFoundError:
         print("Không tìm thấy thông tin cấu hình WiFi.")
         fs.unmount()
+        os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
+        with open(OUTPUT_PATH, "w", encoding="utf-8") as dst:
+            dst.write("{}")
+        print("Đã xóa nội dung data/wifi_info.json.")
         sys.exit(1)
 
     fs.unmount()
 
-    # Bước 4: Ghi về data/wifi_info.json trong dự án
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
     with open(OUTPUT_PATH, "w", encoding="utf-8") as dst:
         dst.write(content)
 
-        print(f"\nĐã lưu thông tin WiFi ở data/wifi_info.json")
-    # print(f"\nĐã lưu thông tin WiFi vào: {OUTPUT_PATH}")
-    # print(f"Nội dung: {content.strip()}")
+    print(f"\nĐã lưu thông tin WiFi ở data/wifi_info.json")
 
 
 if __name__ == "__main__":

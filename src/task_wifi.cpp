@@ -10,31 +10,22 @@ void startAP()
 
 void startSTA()
 {
-    if (wifiCredentialCount == 0)
+    if (wifi_ssid.isEmpty())
     {
         vTaskDelete(NULL);
     }
 
     WiFi.mode(WIFI_STA);
 
-    for (int i = 0; i < wifiCredentialCount; i++)
+    if (wifi_pass.isEmpty())
+        WiFi.begin(wifi_ssid.c_str());
+    else
+        WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
+
+    unsigned long start = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 10000)
     {
-        const String &ssid = wifiCredentials[i].ssid;
-        const String &pass = wifiCredentials[i].pass;
-        if (ssid.isEmpty()) continue;
-
-        if (pass.isEmpty())
-            WiFi.begin(ssid.c_str());
-        else
-            WiFi.begin(ssid.c_str(), pass.c_str());
-
-        unsigned long start = millis();
-        while (WiFi.status() != WL_CONNECTED && millis() - start < 10000)
-        {
-            vTaskDelay(100 / portTICK_PERIOD_MS);
-        }
-
-        if (WiFi.status() == WL_CONNECTED) break;
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 
     if (WiFi.status() != WL_CONNECTED)

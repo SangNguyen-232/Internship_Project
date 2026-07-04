@@ -6,10 +6,9 @@
 #include "global.h"
 #include "task_wifi.h"
 
-
 bool check_info_File(bool check);
 void Load_info_File();
 void Delete_info_File();
-void Save_info_File(String WIFI_SSID, String WIFI_PASS);
+void Save_info_File(String ssid, String pass);
 
 #endif

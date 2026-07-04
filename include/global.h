@@ -1,8 +1,6 @@
 #ifndef __GLOBAL_H__
 #define __GLOBAL_H__
 
-#define WIFI_MAX_CREDENTIALS 5
-
 #include <Arduino.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -15,14 +13,14 @@ struct SharedContext {
     int soilRaw;
     SemaphoreHandle_t mutexContext;
     SemaphoreHandle_t semLEDUpdate;
-    int ledState; // 1: Normal, 2: Warning, 3: Critical
+    int ledState;
     SemaphoreHandle_t semNeoUpdate;
     int neoState;
     SemaphoreHandle_t semLCDUpdate;
     int lcdState;
-    int mlPredicted;     // 1=Normal, 2=Warning, 3=Critical (nhãn TinyML dự đoán)
-    float mlConfidence;  // độ tin cậy 0..1 của nhãn dự đoán
-    time_t timestampReal;        // thời gian dự đoán
+    int mlPredicted;
+    float mlConfidence;
+    time_t timestampReal;
     char mlStatus[16];
     float mlRollAcc;
 };
@@ -31,13 +29,8 @@ extern float glob_temperature;
 extern float glob_humidity;
 extern float glob_soil;
 
-struct WifiCredential {
-    String ssid;
-    String pass;
-};
-
-extern WifiCredential wifiCredentials[WIFI_MAX_CREDENTIALS];
-extern int wifiCredentialCount;
+extern String wifi_ssid;
+extern String wifi_pass;
 
 extern boolean isWifiConnected;
 extern SemaphoreHandle_t xBinarySemaphoreInternet;
