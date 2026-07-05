@@ -101,7 +101,6 @@ def main() -> None:
         os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
         with open(OUTPUT_PATH, "w", encoding="utf-8") as dst:
             dst.write("{}")
-        print("Đã xóa nội dung data/wifi_info.json.")
         sys.exit(1)
 
     fs.unmount()

@@ -6,7 +6,7 @@
 
 #define DB_SEND_INTERVAL_MS 5000
 
-static const char *DB_URL = "https://webhook.site/e3eee19b-be20-44d6-bd7b-da0aad7ff81a";
+static const char *DB_URL = "http://172.20.10.3:3000/sensor";
 
 static String formatTimestamp(time_t t)
 {
