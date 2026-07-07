@@ -17,7 +17,7 @@ void led_blinky(void *pvParameters){
         else delay_ms = 1000;
     }
 
-    digitalWrite(LED_GPIO, HIGH);  // turn the LED ON
+    digitalWrite(LED_GPIO, HIGH);  
     
     if (ctx != NULL) {
         if (xSemaphoreTake(ctx->semLEDUpdate, pdMS_TO_TICKS(delay_ms))) {
@@ -28,7 +28,7 @@ void led_blinky(void *pvParameters){
         vTaskDelay(pdMS_TO_TICKS(delay_ms));
     }
     
-    digitalWrite(LED_GPIO, LOW);  // turn the LED OFF
+    digitalWrite(LED_GPIO, LOW);  
     
     if (ctx != NULL) {
         if (xSemaphoreTake(ctx->semLEDUpdate, pdMS_TO_TICKS(delay_ms))) {

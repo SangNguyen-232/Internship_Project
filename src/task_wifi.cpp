@@ -4,7 +4,7 @@ void startAP()
 {
     WiFi.mode(WIFI_AP);
     WiFi.softAP(String(SSID_AP), String(PASS_AP));
-    Serial.print("AP IP: ");
+    Serial.print("Địa chỉ IP chế độ AP Mode: ");
     Serial.println(WiFi.softAPIP());
 }
 
@@ -33,8 +33,10 @@ void startSTA()
         vTaskDelete(NULL);
     }
 
-    Serial.print("STA IP address: ");
+    Serial.print("Địa chỉ IP chế độ STA Mode: ");
     Serial.println(WiFi.localIP());
+
+    Save_sta_ip_File(WiFi.localIP().toString());
 
     configTime(7 * 3600, 0, "pool.ntp.org", "time.nist.gov");
 

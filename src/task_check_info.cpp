@@ -31,7 +31,7 @@ void Delete_info_File()
     wifiFile.close();
   }
 
-  Serial.println("The device has been successfully reset.");
+  Serial.println("Thiết bị đã được reset thành công.");
   Serial.flush();
   delay(100);
   ESP.restart();
@@ -75,4 +75,26 @@ bool check_info_File(bool check)
     return false;
   }
   return true;
+}
+
+void Save_sta_ip_File(String ip)
+{
+  if (!LittleFS.exists("/info.dat")) return;
+
+  File file = LittleFS.open("/info.dat", "r");
+  if (!file) return;
+
+  DynamicJsonDocument doc(512);
+  DeserializationError error = deserializeJson(doc, file);
+  file.close();
+  if (error) return;
+
+  doc["STA_IP"] = ip;
+
+  File configFile = LittleFS.open("/info.dat", "w");
+  if (configFile)
+  {
+    serializeJson(doc, configFile);
+    configFile.close();
+  }
 }

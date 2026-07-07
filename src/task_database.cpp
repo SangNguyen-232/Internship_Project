@@ -4,8 +4,6 @@
 #include "serial_log.h"
 #include "task_webserver.h"
 
-#define DB_SEND_INTERVAL_MS 5000
-
 static const char *DB_URL = "http://172.20.10.3:3000/sensor";
 
 static String formatTimestamp(time_t t)
@@ -24,9 +22,10 @@ void task_database(void *pvParameters)
 
     while (1)
     {
+        xSemaphoreTake(ctx->semDBUpdate, portMAX_DELAY);
+
         if (WiFi.status() != WL_CONNECTED)
         {
-            vTaskDelay(pdMS_TO_TICKS(DB_SEND_INTERVAL_MS));
             continue;
         }
 
@@ -61,15 +60,15 @@ void task_database(void *pvParameters)
         time_t timestampUp = time(nullptr);
 
         String payload = "{\n";
-        payload += "  \"timestamp_real\":\"" + formatTimestamp(timestampReal) + "\",\n"; 
-        payload += "  \"timestamp_up\":\"" + formatTimestamp(timestampUp) + "\",\n";     
-        payload += "  \"temperature\":\"" + String(temperature, 2) + "°C\",\n";               
-        payload += "  \"humidity\":\"" + String(humidity, 2) + "%\",\n";                    
+        payload += "  \"timestamp_real\":\"" + formatTimestamp(timestampReal) + "\",\n";
+        payload += "  \"timestamp_up\":\"" + formatTimestamp(timestampUp) + "\",\n";
+        payload += "  \"temperature\":\"" + String(temperature, 2) + "°C\",\n";
+        payload += "  \"humidity\":\"" + String(humidity, 2) + "%\",\n";
         char soilBuf[8];
         snprintf(soilBuf, sizeof(soilBuf), "%02d", soilMoisture);
         payload += "  \"soil_moisture\":\"" + String(soilBuf) + "%\",\n";
-        payload += "  \"PUMP_state\":\"" + pumpState + "\",\n";                         
-        payload += "  \"MODE_state\":\"" + modeState + "\",\n";                         
+        payload += "  \"PUMP_state\":\"" + pumpState + "\",\n";
+        payload += "  \"MODE_state\":\"" + modeState + "\",\n";
         payload += "  \"Message\":\"" + String(mlStatus) + "\",\n";
         payload += "  \"Score\":\"" + String(mlRollAcc >= 100.0f ? "100" : String(mlRollAcc, 2)) + "%\"\n";
         payload += "}";
@@ -81,14 +80,12 @@ void task_database(void *pvParameters)
 
         int httpCode = http.POST(payload);
 
-        // No serial output for database transmissions.
         serialLogLock();
         if (httpCode > 0)
-            Serial.printf("[DB] POST -> %d\n", httpCode);
+            Serial.printf("[DB] POST thành công -> %d\n", httpCode);
         else
-            Serial.printf("[DB] POST failed: %s\n", http.errorToString(httpCode).c_str());
+            Serial.printf("[DB] POST thất bại: %s\n", http.errorToString(httpCode).c_str());
         serialLogUnlock();
         http.end();
-        vTaskDelay(pdMS_TO_TICKS(DB_SEND_INTERVAL_MS));
     }
 }

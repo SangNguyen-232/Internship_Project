@@ -1,5 +1,3 @@
-
-
 #include "global.h"
 #include "task_check_info.h"
 

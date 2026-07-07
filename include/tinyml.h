@@ -2,7 +2,6 @@
 #define __TINY_ML__
 
 #include <Arduino.h>
-
 #include "dht_anomaly_model.h"
 #include "global.h"
 

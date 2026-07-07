@@ -18,6 +18,7 @@ struct SharedContext {
     int neoState;
     SemaphoreHandle_t semLCDUpdate;
     int lcdState;
+    SemaphoreHandle_t semDBUpdate;
     int mlPredicted;
     float mlConfidence;
     time_t timestampReal;
@@ -34,4 +35,5 @@ extern String wifi_pass;
 
 extern boolean isWifiConnected;
 extern SemaphoreHandle_t xBinarySemaphoreInternet;
+
 #endif

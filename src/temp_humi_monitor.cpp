@@ -35,11 +35,9 @@ void temp_humi_monitor(void *pvParameters) {
 
         int raw_soil = analogRead(SOIL_PIN);
         int soil_moisture = map(raw_soil, 0, 4095, 0, 100);
-        // Serial.println(soil_moisture);
 
         if (isnan(temperature) || isnan(humidity)) {
             serialLogLock();
-            Serial.println("Failed to read from DHT sensor!");
             serialLogUnlock();
             temperature = humidity = -1;
         }
@@ -58,7 +56,7 @@ void temp_humi_monitor(void *pvParameters) {
             if (WiFi.status() == WL_CONNECTED) {
                 ctx->timestampReal = time(nullptr);
             } else {
-                ctx->timestampReal = 0;  // AP Mode: không có timestamp thực
+                ctx->timestampReal = 0;
             }
 
             const int newLedState = risk_led_state_from_temperature(temperature);
@@ -80,6 +78,7 @@ void temp_humi_monitor(void *pvParameters) {
             }
 
             xSemaphoreGive(ctx->mutexContext);
+            xSemaphoreGive(ctx->semDBUpdate);
         }
 
         lcd.setCursor(0, 0);

@@ -8,7 +8,6 @@
 #include "tinyml.h"
 #include "task_database.h"
 
-// include task
 #include "task_check_info.h"
 #include "task_toogle_boot.h"
 #include "task_wifi.h"
@@ -34,6 +33,9 @@ void setup()
   ctx->semLEDUpdate = xSemaphoreCreateBinary();
   ctx->semNeoUpdate = xSemaphoreCreateBinary();
   ctx->semLCDUpdate = xSemaphoreCreateBinary();
+  ctx->semDBUpdate  = xSemaphoreCreateBinary();
+
+  Webserver_init_ctx(ctx);
 
   xTaskCreate(led_blinky, "Task LED Blink", 2048, (void*)ctx, 2, NULL);
   xTaskCreate(neo_blinky, "Task NEO Blink", 2048, (void*)ctx, 2, NULL);

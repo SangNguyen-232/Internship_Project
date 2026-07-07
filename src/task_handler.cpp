@@ -33,8 +33,7 @@ void handleWebSocketMessage(String message)
     {
         String WIFI_SSID = doc["value"]["ssid"].as<String>();
         String WIFI_PASS = doc["value"]["password"].as<String>();
-
-        Serial.println("📥 Nhận cấu hình từ WebSocket:");
+        
         Serial.println("SSID: " + WIFI_SSID);
         Serial.println("PASS: " + WIFI_PASS);
 

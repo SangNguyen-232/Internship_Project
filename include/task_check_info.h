@@ -10,5 +10,6 @@ bool check_info_File(bool check);
 void Load_info_File();
 void Delete_info_File();
 void Save_info_File(String ssid, String pass);
+void Save_sta_ip_File(String ip);
 
 #endif

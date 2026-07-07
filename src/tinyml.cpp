@@ -3,7 +3,6 @@
 #include "serial_log.h"
 
 #include <math.h>
-
 namespace
 {
     tflite::ErrorReporter *error_reporter = nullptr;
@@ -33,13 +32,12 @@ namespace
         }
         return best;
     }
-} // namespace
+} 
 
 void setupTinyML()
 {
     s_tinyml_ready = false;
     serialLogLock();
-    Serial.println("TensorFlow Lite Init....");
     serialLogUnlock();
     static tflite::MicroErrorReporter micro_error_reporter;
     error_reporter = &micro_error_reporter;
@@ -79,7 +77,6 @@ void setupTinyML()
 
     s_tinyml_ready = true;
     serialLogLock();
-    Serial.println("TensorFlow Lite Micro initialized on ESP32.");
     serialLogUnlock();
 }
 
@@ -89,7 +86,6 @@ void tiny_ml_task(void *pvParameters)
     if (!ctx)
     {
         serialLogLock();
-        Serial.println("TinyML: SharedContext is null; task stopped.");
         serialLogUnlock();
         vTaskDelete(nullptr);
         return;
@@ -99,7 +95,6 @@ void tiny_ml_task(void *pvParameters)
     if (!s_tinyml_ready)
     {
         serialLogLock();
-        Serial.println("TinyML: setup failed; task stopped.");
         serialLogUnlock();
         vTaskDelete(nullptr);
         return;
@@ -123,7 +118,6 @@ void tiny_ml_task(void *pvParameters)
         if (isnan(temperature) || isnan(humidity) || temperature < 0.0f || humidity < 0.0f)
         {
             serialLogLock();
-            Serial.println("TinyML: skip (invalid DHT reading)");
             serialLogUnlock();
             vTaskDelay(pdMS_TO_TICKS(5000));
             continue;
@@ -157,7 +151,6 @@ void tiny_ml_task(void *pvParameters)
             correct++;
         inferences++;
 
-        // Logic thêm chữ Normal / Warning / Critical
         const char* status = "Mismatch"; 
         if (expected == predicted) {
             if (expected == 1) status = "Normal";
@@ -174,7 +167,7 @@ void tiny_ml_task(void *pvParameters)
         }
 
         serialLogLock();
-        Serial.printf("TinyML T=%.1f°C H=%.1f%% | rule=%d pred=%d | %s | p=[%.2f,%.2f,%.2f] | %lums | roll_acc=%.1f%% (%lu/%lu)\n",
+        Serial.printf("TinyML T=%.1f°C H=%.1f%% | rule=%d pred=%d | %s | p=[%.2f,%.2f,%.2f] | roll_acc=%.1f%% (%lu/%lu)\n",
                       temperature, humidity, expected, predicted,
                       status,
                       output->data.f[0], output->data.f[1], output->data.f[2],
