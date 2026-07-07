@@ -11,7 +11,8 @@ CREATE TABLE "sensor_logs" (
   "PUMP_state" text,
   "MODE_state" text,
   "Message" text,
-  "Score" text
+  "Score" text,
+  "device_id" text
 );
 
 CREATE USER iot_user WITH PASSWORD 'iot_password';

@@ -167,7 +167,7 @@ void tiny_ml_task(void *pvParameters)
         }
 
         serialLogLock();
-        Serial.printf("TinyML T=%.1f°C H=%.1f%% | rule=%d pred=%d | %s | p=[%.2f,%.2f,%.2f] | roll_acc=%.1f%% (%lu/%lu)\n",
+        Serial.printf("TinyML T=%.1f°C H=%.1f%% | rule=%d pred=%d | %s | p=[%.2f,%.2f,%.2f] | %lums | roll_acc=%.1f%% (%lu/%lu)\n",
                       temperature, humidity, expected, predicted,
                       status,
                       output->data.f[0], output->data.f[1], output->data.f[2],

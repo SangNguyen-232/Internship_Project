@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin – ESP32 IoT Fleet</title>
+<link rel="stylesheet" href="./admin.css" />
+</head>
+<body>
+<div class="admin-wrap">
+
+  <!-- Header -->
+  <header class="admin-header">
+    <h1>
+      <span class="brand-mark">E</span>
+      ESP32 IoT &mdash; Admin Dashboard
+    </h1>
+    <div class="header-right">
+      <span class="refresh-info" id="lastRefresh">Đang tải...</span>
+      <button class="btn-refresh" id="btnRefresh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+          <path d="M21 3v5h-5"/>
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+          <path d="M3 21v-5h5"/>
+        </svg>
+        Làm mới
+      </button>
+    </div>
+  </header>
+
+  <!-- Summary bar -->
+  <div class="summary-bar">
+    <div class="summary-card">
+      <div class="summary-icon icon-total">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2"/>
+          <path d="M8 21h8M12 17v4"/>
+        </svg>
+      </div>
+      <div>
+        <div class="summary-label">Tổng thiết bị</div>
+        <div class="summary-value" id="sumTotal">—</div>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <div class="summary-icon icon-online">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+      </div>
+      <div>
+        <div class="summary-label">Online</div>
+        <div class="summary-value" id="sumOnline">—</div>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <div class="summary-icon icon-offline">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+        </svg>
+      </div>
+      <div>
+        <div class="summary-label">Offline</div>
+        <div class="summary-value" id="sumOffline">—</div>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <div class="summary-icon icon-time">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>
+        </svg>
+      </div>
+      <div>
+        <div class="summary-label">Thời gian</div>
+        <div class="summary-value" id="sumTime">--:--:--</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Device list -->
+  <div class="section-title">Thiết bị</div>
+  <div class="device-grid" id="deviceGrid">
+    <div class="state-box">
+      <div class="spinner"></div>
+      <span>Đang tải dữ liệu...</span>
+    </div>
+  </div>
+
+</div>
+
+<script src="./admin.js"></script>
+</body>
+</html>
