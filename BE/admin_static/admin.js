@@ -33,21 +33,7 @@
     return Math.floor(diff / 86400) + "d trước";
   }
 
-  function pumpChipClass(state) {
-    return (state || "").toUpperCase() === "ON" ? "chip chip-pump-on" : "chip chip-pump-off";
-  }
 
-  function modeChipClass(mode) {
-    return (mode || "").toUpperCase() === "MANUAL" ? "chip chip-manual" : "chip chip-auto";
-  }
-
-  function messageChipClass(msg) {
-    if (!msg) return "chip chip-normal";
-    var m = msg.toLowerCase();
-    if (m.includes("critical")) return "chip chip-critical";
-    if (m.includes("warning"))  return "chip chip-warning";
-    return "chip chip-normal";
-  }
 
   // Tên hiển thị: lấy phần đầu device_id, viết hoa
   function displayName(deviceId) {
@@ -96,14 +82,7 @@
       '</div>' +
 
       '<div class="card-footer">' +
-        '<div class="meta-chips">' +
-          '<span class="' + pumpChipClass(device.PUMP_state) + '">PUMP ' + fmtValue(device.PUMP_state) + '</span>' +
-          '<span class="' + modeChipClass(device.MODE_state) + '">' + fmtValue(device.MODE_state) + '</span>' +
-          (device.Message
-            ? '<span class="' + messageChipClass(device.Message) + '">' + device.Message + '</span>'
-            : '') +
-        '</div>' +
-        '<span class="last-seen">' + relativeTime(device.timestamp_up) + '</span>' +
+        '<span class="last-seen">Cập nhật: ' + relativeTime(device.timestamp_up) + '</span>' +
       '</div>' +
 
       '<div class="card-arrow">' +
@@ -115,7 +94,7 @@
 
     // Click / Enter → mở dashboard chi tiết
     function openDetail() {
-      window.open(url, "_blank");
+      window.location.href = url;
     }
     card.addEventListener("click", openDetail);
     card.addEventListener("keydown", function (e) {

@@ -3,8 +3,9 @@
 #include <HTTPClient.h>
 #include "serial_log.h"
 #include "task_webserver.h"
+#include "pump.h"
 
-static const char *DB_URL = "http://172.20.10.3:3000/sensor";
+static const char *DB_URL = "192.168.1.5:3000/sensor";
 
 static String formatTimestamp(time_t t)
 {
@@ -23,6 +24,8 @@ void task_database(void *pvParameters)
     while (1)
     {
         xSemaphoreTake(ctx->semDBUpdate, portMAX_DELAY);
+
+        vTaskDelay(200 / portTICK_PERIOD_MS);
 
         if (WiFi.status() != WL_CONNECTED)
         {
@@ -54,8 +57,11 @@ void task_database(void *pvParameters)
             xSemaphoreGive(ctx->mutexContext);
         }
 
-        pumpState = global_pump_state;
-        modeState = global_pump_mode;
+        if (xSemaphoreTake(xMutexPumpControl, pdMS_TO_TICKS(2000)) == pdTRUE) {
+            pumpState = global_pump_state;
+            modeState = global_pump_mode;
+            xSemaphoreGive(xMutexPumpControl);
+        }
 
         time_t timestampUp = time(nullptr);
 
@@ -70,7 +76,8 @@ void task_database(void *pvParameters)
         payload += "  \"PUMP_state\":\"" + pumpState + "\",\n";
         payload += "  \"MODE_state\":\"" + modeState + "\",\n";
         payload += "  \"Message\":\"" + String(mlStatus) + "\",\n";
-        payload += "  \"Score\":\"" + String(mlRollAcc >= 100.0f ? "100" : String(mlRollAcc, 2)) + "%\"\n";
+        payload += "  \"Score\":\"" + String(mlRollAcc >= 100.0f ? "100" : String(mlRollAcc, 2)) + "%\",\n";
+        payload += "  \"device_id\":\"" + WiFi.localIP().toString() + "\"\n";
         payload += "}";
 
         HTTPClient http;

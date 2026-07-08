@@ -57,8 +57,12 @@ void task_pump(void *pvParameters)
             String wsPayload = "{\"pump_state\":\"" + String(new_state ? "ON" : "OFF") +
                                 "\",\"pump_mode\":\"" + modeStr + "\"}";
             Webserver_sendata(wsPayload);
+
+            if (ctx != NULL) {
+                xSemaphoreGive(ctx->semDBUpdate);
+            }
         }
 
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }

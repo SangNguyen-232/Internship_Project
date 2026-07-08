@@ -63,49 +63,68 @@ void connnectWSV()
     });
 
     server.on("/toggle-pump", HTTP_GET, [](AsyncWebServerRequest *request) {
-        if (request->hasParam("state")) {
-            global_pump_state = request->getParam("state")->value();
-            global_pump_state.toUpperCase();
-        } else {
-            global_pump_state = (global_pump_state == "ON") ? "OFF" : "ON";
+        String temp_state;
+        bool has_param = request->hasParam("state");
+        if (has_param) {
+            temp_state = request->getParam("state")->value();
+            temp_state.toUpperCase();
         }
-        
-        global_pump_mode = "MANUAL";
 
+        String current_state, current_mode;
         if (xSemaphoreTake(xMutexPumpControl, portMAX_DELAY) == pdTRUE) {
+            if (has_param) {
+                global_pump_state = temp_state;
+            } else {
+                global_pump_state = (global_pump_state == "ON") ? "OFF" : "ON";
+            }
+            
+            global_pump_mode = "MANUAL";
             pump_manual_control = true;
             pump_manual_state = (global_pump_state == "ON");
+
+            current_state = global_pump_state;
+            current_mode = global_pump_mode;
             xSemaphoreGive(xMutexPumpControl);
         }
 
-        Webserver_sendata("{\"pump_state\":\"" + global_pump_state + "\",\"pump_mode\":\"" + global_pump_mode + "\"}");
+        Webserver_sendata("{\"pump_state\":\"" + current_state + "\",\"pump_mode\":\"" + current_mode + "\"}");
 
         if (s_ctx != nullptr) xSemaphoreGive(s_ctx->semDBUpdate);
 
-        request->send(200, "text/plain", global_pump_state);
+        request->send(200, "text/plain", current_state);
     });
 
     server.on("/set-mode", HTTP_GET, [](AsyncWebServerRequest *request) {
-        if (request->hasParam("mode")) {
-            global_pump_mode = request->getParam("mode")->value();
-            global_pump_mode.toUpperCase();
-        } else {
-            global_pump_mode = (global_pump_mode == "MANUAL") ? "AUTO" : "MANUAL";
+        String temp_mode;
+        bool has_param = request->hasParam("mode");
+        if (has_param) {
+            temp_mode = request->getParam("mode")->value();
+            temp_mode.toUpperCase();
         }
 
+        String current_state, current_mode;
         if (xSemaphoreTake(xMutexPumpControl, portMAX_DELAY) == pdTRUE) {
+            if (has_param) {
+                global_pump_mode = temp_mode;
+            } else {
+                global_pump_mode = (global_pump_mode == "MANUAL") ? "AUTO" : "MANUAL";
+            }
+
             pump_manual_control = (global_pump_mode == "MANUAL");
             if (pump_manual_control) {
                 pump_manual_state = (global_pump_state == "ON");
             }
+
+            current_state = global_pump_state;
+            current_mode = global_pump_mode;
             xSemaphoreGive(xMutexPumpControl);
         }
 
-        Webserver_sendata("{\"pump_state\":\"" + global_pump_state + "\",\"pump_mode\":\"" + global_pump_mode + "\"}");
+        Webserver_sendata("{\"pump_state\":\"" + current_state + "\",\"pump_mode\":\"" + current_mode + "\"}");
 
         if (s_ctx != nullptr) xSemaphoreGive(s_ctx->semDBUpdate);
 
-        request->send(200, "text/plain", global_pump_mode);
+        request->send(200, "text/plain", current_mode);
     });
 
     server.begin();
