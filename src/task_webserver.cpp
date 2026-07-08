@@ -10,6 +10,7 @@ bool webserver_isrunning = false;
 
 String global_pump_state = "OFF"; 
 String global_pump_mode = "AUTO"; 
+String global_admin_ip = "";
 
 static SharedContext* s_ctx = nullptr;
 
@@ -26,10 +27,24 @@ void Webserver_sendata(String data)
     }
 }
 
+static void captureAdminIp(AsyncWebServerRequest *request)
+{
+    String ip = request->client()->remoteIP().toString();
+    if (!ip.isEmpty() && ip != "0.0.0.0")
+    {
+        global_admin_ip = ip;
+    }
+}
+
 void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)
 {
     if (type == WS_EVT_CONNECT)
     {
+        String ip = client->remoteIP().toString();
+        if (!ip.isEmpty() && ip != "0.0.0.0")
+        {
+            global_admin_ip = ip;
+        }
         Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
     }
     else if (type == WS_EVT_DISCONNECT)
@@ -57,12 +72,14 @@ void connnectWSV()
     server.serveStatic("/", LittleFS, "/").setDefaultFile("dashboard.html");
 
     server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+        captureAdminIp(request);
         bool is_ap_mode = (WiFi.getMode() == WIFI_AP) || (WiFi.getMode() == WIFI_AP_STA && WiFi.status() != WL_CONNECTED);
         String json = "{\"mqtt_connected\": true, \"is_ap_mode\": " + String(is_ap_mode ? "true" : "false") + "}"; 
         request->send(200, "application/json", json);
     });
 
     server.on("/toggle-pump", HTTP_GET, [](AsyncWebServerRequest *request) {
+        captureAdminIp(request);
         String temp_state;
         bool has_param = request->hasParam("state");
         if (has_param) {
@@ -95,6 +112,7 @@ void connnectWSV()
     });
 
     server.on("/set-mode", HTTP_GET, [](AsyncWebServerRequest *request) {
+        captureAdminIp(request);
         String temp_mode;
         bool has_param = request->hasParam("mode");
         if (has_param) {

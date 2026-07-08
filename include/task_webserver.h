@@ -13,6 +13,7 @@ extern AsyncWebServer server;
 extern AsyncWebSocket ws;
 extern String global_pump_state;   
 extern String global_pump_mode;    
+extern String global_admin_ip;     
 
 void Webserver_init_ctx(SharedContext* ctx);
 void Webserver_stop();

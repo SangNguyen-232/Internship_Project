@@ -5,8 +5,6 @@
 #include "task_webserver.h"
 #include "pump.h"
 
-static const char *DB_URL = "192.168.1.5:3000/sensor";
-
 static String formatTimestamp(time_t t)
 {
     if (t == 0) return "null";
@@ -29,6 +27,14 @@ void task_database(void *pvParameters)
 
         if (WiFi.status() != WL_CONNECTED)
         {
+            continue;
+        }
+
+        if (global_admin_ip.isEmpty())
+        {
+            serialLogLock();
+            Serial.println("[DB] Chưa có IP admin, bỏ qua lần này.");
+            serialLogUnlock();
             continue;
         }
 
@@ -80,8 +86,10 @@ void task_database(void *pvParameters)
         payload += "  \"device_id\":\"" + WiFi.localIP().toString() + "\"\n";
         payload += "}";
 
+        String dbUrl = "http://" + global_admin_ip + ":3000/sensor";
+
         HTTPClient http;
-        http.begin(DB_URL);
+        http.begin(dbUrl);
         http.setTimeout(5000);
         http.addHeader("Content-Type", "application/json");
 

@@ -6,7 +6,7 @@ const app = express();
 app.use(express.json());
 
 // Serve static files cho admin dashboard
-app.use('/admin', express.static(path.join(__dirname, 'admin_static')));
+app.use('/admin', express.static(path.join(__dirname, 'admin_static'), { index: 'admin.html' }));
 
 const pool = new Pool({
   host:     'localhost',
