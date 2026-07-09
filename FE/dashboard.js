@@ -7,7 +7,7 @@
 
   var state = {
     pumpState: "OFF",
-    pumpMode: "AUTO", // AUTO | MANUAL (mirrors pump_mode / pump_controller from firmware)
+    pumpMode: "AUTO",
     lat: DEFAULT_LAT,
     lng: DEFAULT_LNG,
   };
@@ -112,7 +112,7 @@
     });
   }
 
-  // ---------- Fallback: canvas thuần (chỉ dùng khi không tải được Chart.js, vd: AP Mode) ----------
+  // ---------- Fallback ----------
   function initFallbackChart() {
     fallbackChart = true;
     fallbackCanvas = document.getElementById("sensorChart");
@@ -141,7 +141,6 @@
     fallbackCtx.clearRect(0, 0, w, h);
     fallbackCtx.font = "10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
-    // ----- Lưới ngang + nhãn trục Y (0/25/50/75/100), giống scales.y của Chart.js -----
     var yTicks = [0, 25, 50, 75, 100];
     fallbackCtx.textAlign = "right";
     fallbackCtx.textBaseline = "middle";
@@ -162,7 +161,6 @@
       return padLeft + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
     }
 
-    // ----- Mốc thời gian trên trục X: lấy từ fallbackData.labels (đã ghi sẵn ở pushChartPoint) -----
     if (n > 0) {
       fallbackCtx.textAlign = "center";
       fallbackCtx.textBaseline = "top";
@@ -173,11 +171,10 @@
         fallbackCtx.fillText(fallbackData.labels[i], xAt(i), padTop + plotH + 6);
       }
       if ((n - 1) % step !== 0) {
-        fallbackCtx.fillText(fallbackData.labels[n - 1], xAt(n - 1), padTop + plotH + 6); // luôn hiện mốc mới nhất
+        fallbackCtx.fillText(fallbackData.labels[n - 1], xAt(n - 1), padTop + plotH + 6); 
       }
     }
 
-    // ----- Vẽ từng series: đường cong mượt (mô phỏng tension: 0.35) + điểm đánh dấu (giống pointRadius: 3) -----
     function drawSeries(values, color) {
       if (values.length === 0) return;
       var pts = values.map(function (v, i) {
@@ -441,7 +438,6 @@
 
   // ---------- Toggle buttons ----------
 
-  // 1. Xử lý sự kiện nút bấm PUMP (Bật / Tắt bơm thủ công)
   els.pumpToggleBtn.addEventListener("click", function () {
     var nextState = state.pumpState === "ON" ? "OFF" : "ON";
 
@@ -461,7 +457,6 @@
       });
   });
 
-  // 2. Xử lý sự kiện nút bấm MODE (Chuyển đổi MANUAL <-> AUTO)
   els.modeToggleBtn.addEventListener("click", function () {
     var nextMode = state.pumpMode === "MANUAL" ? "AUTO" : "MANUAL";
 
@@ -504,7 +499,6 @@
       var ssid = document.getElementById("wifiSsid").value;
       var pass = document.getElementById("wifiPass").value;
 
-      // Định dạng payload đúng theo handleWebSocketMessage() trong task_handler.cpp
       var payload = {
         page: "setting",
         value: {

@@ -1,13 +1,8 @@
 (function () {
   "use strict";
 
-  // Thiết bị được coi là online nếu timestamp_up trong vòng ONLINE_THRESHOLD_MS
   var ONLINE_THRESHOLD_MS = 2 * 60 * 1000; // 2 phút
 
-  // URL của dashboard chi tiết ESP32 (dashboard.html serve bởi chính ESP32)
-  // device.device_id được dùng như hostname hoặc IP tuỳ cấu hình hệ thống
-  // Nếu dự án dùng STA_IP lưu trong info.dat thì có thể map device_id → IP.
-  // Hiện tại: mở http://<device_id>/ (device_id = IP hoặc hostname)
   function detailUrl(device) {
     return "http://" + device.device_id + "/";
   }
@@ -33,9 +28,6 @@
     return Math.floor(diff / 86400) + "d trước";
   }
 
-
-
-  // Tên hiển thị: lấy phần đầu device_id, viết hoa
   function displayName(deviceId) {
     return deviceId || "Unknown";
   }
@@ -92,7 +84,6 @@
         '</svg>' +
       '</div>';
 
-    // Click / Enter → mở dashboard chi tiết
     function openDetail() {
       window.location.href = url;
     }
@@ -181,7 +172,6 @@
   tickClock();
   setInterval(tickClock, 1000);
 
-  // Tự động làm mới mỗi 15 giây
   fetchDevices();
   setInterval(fetchDevices, 15000);
 

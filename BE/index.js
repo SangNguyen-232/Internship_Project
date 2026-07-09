@@ -7,7 +7,6 @@ app.use(express.json());
 
 app.get('/', (req, res) => res.redirect('/admin/admin.html'));
 
-// Serve static files cho admin dashboard
 app.use('/admin', express.static(path.join(__dirname, 'admin_static'), { index: 'admin.html' }));
 
 const pool = new Pool({
@@ -18,9 +17,6 @@ const pool = new Pool({
   port:     5432,
 });
 
-// ───────────────────────────────────────────────
-// API cũ (không thay đổi logic) - chỉ thêm device_id
-// ───────────────────────────────────────────────
 app.post('/sensor', async (req, res) => {
   try {
     const {
@@ -33,7 +29,7 @@ app.post('/sensor', async (req, res) => {
       MODE_state,
       Message,
       Score,
-      device_id          // thêm mới - nếu ESP32 không gửi thì dùng default
+      device_id          
     } = req.body;
 
     await pool.query(
@@ -62,12 +58,6 @@ app.post('/sensor', async (req, res) => {
   }
 });
 
-// ───────────────────────────────────────────────
-// API MỚI cho Admin Dashboard
-// ───────────────────────────────────────────────
-
-// GET /admin/api/devices
-// Trả về danh sách tất cả thiết bị với dữ liệu mới nhất
 app.get('/admin/api/devices', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -92,8 +82,6 @@ app.get('/admin/api/devices', async (req, res) => {
   }
 });
 
-// GET /admin/api/devices/:device_id/history?limit=60
-// Trả về lịch sử readings của 1 thiết bị (dùng cho chart trong detail view)
 app.get('/admin/api/devices/:device_id/history', async (req, res) => {
   try {
     const { device_id } = req.params;
@@ -116,7 +104,7 @@ app.get('/admin/api/devices/:device_id/history', async (req, res) => {
       LIMIT $2
     `, [device_id, limit]);
 
-    res.json(result.rows.reverse()); // trả về theo thứ tự thời gian tăng dần
+    res.json(result.rows.reverse()); 
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
