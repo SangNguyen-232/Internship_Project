@@ -33,7 +33,7 @@ void task_database(void *pvParameters)
         if (global_admin_ip.isEmpty())
         {
             serialLogLock();
-            Serial.println("[DB] Chưa có IP admin, bỏ qua lần này.");
+            Serial.println("[DB] Chưa có IP admin.");
             serialLogUnlock();
             continue;
         }

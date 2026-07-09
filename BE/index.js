@@ -5,6 +5,8 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
+app.get('/', (req, res) => res.redirect('/admin/admin.html'));
+
 // Serve static files cho admin dashboard
 app.use('/admin', express.static(path.join(__dirname, 'admin_static'), { index: 'admin.html' }));
 
