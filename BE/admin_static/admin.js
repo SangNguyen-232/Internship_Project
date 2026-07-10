@@ -1,7 +1,12 @@
 (function () {
   "use strict";
 
-  var ONLINE_THRESHOLD_MS = 2 * 60 * 1000; // 2 phút
+  var STALE_DIFF_MS = 10 * 1000; 
+  var COUNTDOWN_SECONDS = 5;      
+
+  var countdownStart = {};
+  var currentDevices = [];
+  var latestTimestampUp = null;
 
   function detailUrl(device) {
     return "http://" + device.device_id + "/";
@@ -9,35 +14,116 @@
 
   // ─── Helpers ───────────────────────────────────────────────
 
-  function isOnline(device) {
-    if (!device.timestamp_up) return false;
-    var ts = new Date(device.timestamp_up).getTime();
-    return (Date.now() - ts) < ONLINE_THRESHOLD_MS;
-  }
-
   function fmtValue(v) {
     return (v !== null && v !== undefined && v !== "") ? v : "—";
-  }
-
-  function relativeTime(tsStr) {
-    if (!tsStr) return "Không rõ";
-    var diff = Math.floor((Date.now() - new Date(tsStr).getTime()) / 1000);
-    if (diff < 60)  return diff + "s trước";
-    if (diff < 3600) return Math.floor(diff / 60) + "m trước";
-    if (diff < 86400) return Math.floor(diff / 3600) + "h trước";
-    return Math.floor(diff / 86400) + "d trước";
   }
 
   function displayName(deviceId) {
     return deviceId || "Unknown";
   }
 
+  function fmtTimestamp(tsStr) {
+    if (!tsStr) return "—";
+    var d = new Date(tsStr);
+    var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
+    return pad(d.getDate()) + "/" + pad(d.getMonth() + 1) + "/" + d.getFullYear() +
+      " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+  }
+
+function formatOfflineTime(seconds) {
+    seconds = Math.max(0, Math.floor(seconds));
+
+    var h = Math.floor(seconds / 3600);
+    var m = Math.floor((seconds % 3600) / 60);
+    var s = seconds % 60;
+
+    var parts = [];
+
+    if (h > 0) {
+      parts.push(h + "h");
+    }
+
+    if (m > 0) {
+      parts.push(m + "m");
+    }
+
+    if (s > 0) {
+      parts.push(s + "s");
+    }
+
+    if (parts.length === 0) {
+      return "0s";
+    }
+
+    return parts.join("");
+  }
+
+  function getTimestampMs(device) {
+    if (!device || !device.timestamp_up) return null;
+    var ts = new Date(device.timestamp_up).getTime();
+    return isNaN(ts) ? null : ts;
+  }
+
+ // ─── Stale detection sau mỗi fetch ─────────────────────────
+
+  function updateStaleState(device) {
+    var id = device.device_id;
+
+    if (!device.timestamp_up) return;
+
+    var ts = getTimestampMs(device);
+    if (ts === null) return;
+
+    var age = Date.now() - ts; 
+
+    if (age >= STALE_DIFF_MS) {
+      if (!countdownStart[id]) {
+        countdownStart[id] = ts + STALE_DIFF_MS;
+      }
+    } else {
+      delete countdownStart[id];
+    }
+  }
+
+  function getCountdownState(deviceId) {
+    var start = countdownStart[deviceId];
+    if (!start) return null;
+
+    var elapsed = Math.floor((Date.now() - start) / 1000);
+    var remaining = COUNTDOWN_SECONDS - elapsed;
+
+    if (remaining > 0) {
+      return { isOnline: true, text: remaining + "s", label: "Đếm ngược: " };
+    } else {
+      var offlineElapsed = elapsed - COUNTDOWN_SECONDS;
+
+      var roundedOfflineSeconds = Math.floor(offlineElapsed / 30) * 30;
+
+      return {
+        isOnline: false,
+        text: formatOfflineTime(roundedOfflineSeconds),
+        label: "Đã Offline: "
+      };
+    }
+  }
+
+  function isDeviceOnline(device) {
+    var state = getCountdownState(device.device_id);
+    return (state === null || state.isOnline);
+  }
+
   // ─── Render ────────────────────────────────────────────────
 
   function renderCard(device) {
-    var online = isOnline(device);
-    var statusClass = online ? "online" : "offline";
-    var statusLabel = online ? "Online" : "Offline";
+    var state = getCountdownState(device.device_id);
+    var cardOnline = (state === null || state.isOnline);
+    var cardStatusClass = cardOnline ? "online" : "offline";
+    var cardStatusLabel = cardOnline ? "Online" : "Offline";
+
+    var isStable = (state === null);
+    var displayStyle = isStable ? "none" : "";
+    var countdownDisplay = isStable ? "" : state.text;
+    var countdownPrefix = isStable ? "" : state.label;
 
     var url = detailUrl(device);
 
@@ -45,16 +131,16 @@
     card.className = "device-card";
     card.setAttribute("role", "button");
     card.setAttribute("tabindex", "0");
+    card.setAttribute("data-device-id", device.device_id);
     card.title = "Xem chi tiết " + device.device_id;
 
     card.innerHTML =
       '<div class="device-card-header">' +
         '<div>' +
           '<div class="device-name">' + displayName(device.device_id) + '</div>' +
-          '<div class="device-id-label">ID: ' + device.device_id + '</div>' +
         '</div>' +
-        '<span class="status-pill ' + statusClass + '">' +
-          '<span class="status-dot"></span>' + statusLabel +
+        '<span class="status-pill ' + cardStatusClass + ' js-status-pill">' +
+          '<span class="status-dot"></span><span class="js-status-label">' + cardStatusLabel + '</span>' +
         '</span>' +
       '</div>' +
 
@@ -74,7 +160,10 @@
       '</div>' +
 
       '<div class="card-footer">' +
-        '<span class="last-seen">Cập nhật: ' + relativeTime(device.timestamp_up) + '</span>' +
+        '<span class="last-seen js-last-seen" style="display: ' + displayStyle + ';">' +
+          '<span class="js-countdown-label">' + countdownPrefix + '</span>' +
+          '<span class="js-countdown">' + countdownDisplay + '</span>' +
+        '</span>' +
       '</div>' +
 
       '<div class="card-arrow">' +
@@ -87,9 +176,13 @@
     function openDetail() {
       window.location.href = url;
     }
+
     card.addEventListener("click", openDetail);
     card.addEventListener("keydown", function (e) {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(); }
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openDetail();
+      }
     });
 
     return card;
@@ -118,16 +211,66 @@
   }
 
   function updateSummary(devices) {
-    var total   = devices.length;
-    var online  = devices.filter(isOnline).length;
+    var total = devices.length;
+    var online = devices.filter(isDeviceOnline).length;
     var offline = total - online;
 
-    document.getElementById("sumTotal").textContent   = total;
-    document.getElementById("sumOnline").textContent  = online;
+    document.getElementById("sumTotal").textContent = total;
+    document.getElementById("sumOnline").textContent = online;
     document.getElementById("sumOffline").textContent = offline;
   }
 
+  // ─── Countdown ticker ──────────────────────────────────────
+
+  function tickCountdowns() {
+    var cards = document.querySelectorAll(".device-card[data-device-id]");
+
+    cards.forEach(function (card) {
+      var id = card.getAttribute("data-device-id");
+      var state = getCountdownState(id);
+
+      var lastSeenEl = card.querySelector(".js-last-seen");
+      var countdownEl = card.querySelector(".js-countdown");
+      var labelPrefixEl = card.querySelector(".js-countdown-label");
+      var pillEl = card.querySelector(".js-status-pill");
+      var labelEl = card.querySelector(".js-status-label");
+
+      if (lastSeenEl && countdownEl && labelPrefixEl) {
+        if (state === null) {
+          lastSeenEl.style.display = "none"; 
+        } else {
+          lastSeenEl.style.display = "";     
+          countdownEl.textContent = state.text;
+          labelPrefixEl.textContent = state.label;
+        }
+      }
+
+      if (pillEl && labelEl) {
+        var cardOnline = (state === null || state.isOnline);
+        pillEl.className = "status-pill " + (cardOnline ? "online" : "offline") + " js-status-pill";
+        labelEl.textContent = cardOnline ? "Online" : "Offline";
+      }
+    });
+
+    updateSummary(currentDevices);
+  }
+
   // ─── Fetch ─────────────────────────────────────────────────
+
+  function refreshLastRefreshText() {
+    var el = document.getElementById("lastRefresh");
+    var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
+
+    if (latestTimestampUp) {
+      var d = new Date(latestTimestampUp);
+      el.textContent =
+        "Cập nhật lúc " +
+        pad(d.getDate()) + "/" + pad(d.getMonth() + 1) + "/" + d.getFullYear() +
+        " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+    } else {
+      el.textContent = "Chưa có dữ liệu";
+    }
+  }
 
   function fetchDevices() {
     fetch("/admin/api/devices")
@@ -136,13 +279,24 @@
         return r.json();
       })
       .then(function (data) {
-        renderGrid(data);
-        updateSummary(data);
+        currentDevices = data || [];
 
-        var now = new Date();
-        var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
-        document.getElementById("lastRefresh").textContent =
-          "Cập nhật lúc " + pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
+        currentDevices.forEach(function (device) {
+          updateStaleState(device);
+        });
+
+        var newest = null;
+        currentDevices.forEach(function (device) {
+          var t = getTimestampMs(device);
+          if (t !== null && (!newest || t > newest)) {
+            newest = t;
+          }
+        });
+        latestTimestampUp = newest;
+
+        renderGrid(currentDevices);
+        updateSummary(currentDevices);
+        refreshLastRefreshText();
       })
       .catch(function (err) {
         document.getElementById("deviceGrid").innerHTML =
@@ -162,17 +316,19 @@
 
   document.getElementById("btnRefresh").addEventListener("click", fetchDevices);
 
-  // Đồng hồ client-side (giống dashboard.html)
   function tickClock() {
     var now = new Date();
     var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
     document.getElementById("sumTime").textContent =
       pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
   }
+
   tickClock();
   setInterval(tickClock, 1000);
 
+  setInterval(tickCountdowns, 1000);
+
   fetchDevices();
-  setInterval(fetchDevices, 15000);
+  setInterval(fetchDevices, 5000);
 
 })();
