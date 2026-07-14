@@ -46,6 +46,15 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
             global_admin_ip = ip;
         }
         Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+
+        String pumpState, pumpMode;
+        if (xSemaphoreTake(xMutexPumpControl, pdMS_TO_TICKS(200)) == pdTRUE) {
+            pumpState = global_pump_state;
+            pumpMode  = global_pump_mode;
+            xSemaphoreGive(xMutexPumpControl);
+        }
+        String initMsg = "{\"pump_state\":\"" + pumpState + "\",\"pump_mode\":\"" + pumpMode + "\"}";
+        client->text(initMsg);
     }
     else if (type == WS_EVT_DISCONNECT)
     {

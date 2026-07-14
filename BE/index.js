@@ -111,4 +111,15 @@ app.get('/admin/api/devices/:device_id/history', async (req, res) => {
   }
 });
 
+app.delete('/admin/api/devices/:device_id', async (req, res) => {
+  try {
+    const { device_id } = req.params;
+    await pool.query('DELETE FROM sensor_logs WHERE device_id = $1', [device_id]);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(3000, () => console.log('API running on port 3000'));

@@ -6,6 +6,7 @@
 
   var countdownStart = {};
   var currentDevices = [];
+  var selectedDeviceIds = [];
   var latestTimestampUp = null;
 
   function detailUrl(device) {
@@ -30,7 +31,7 @@
       " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
   }
 
-function formatOfflineTime(seconds) {
+  function formatOfflineTime(seconds) {
     seconds = Math.max(0, Math.floor(seconds));
 
     var h = Math.floor(seconds / 3600);
@@ -64,7 +65,7 @@ function formatOfflineTime(seconds) {
     return isNaN(ts) ? null : ts;
   }
 
- // ─── Stale detection sau mỗi fetch ─────────────────────────
+  // ─── Stale detection sau mỗi fetch ─────────────────────────
 
   function updateStaleState(device) {
     var id = device.device_id;
@@ -112,7 +113,86 @@ function formatOfflineTime(seconds) {
     return (state === null || state.isOnline);
   }
 
-  // ─── Render ────────────────────────────────────────────────
+  // ─── Render Action Bar (JS inject) ───────────────────
+
+  function renderActionBar() {
+    var actionBar = document.getElementById("customActionBar");
+    
+    if (!actionBar) {
+      actionBar = document.createElement("div");
+      actionBar.id = "customActionBar";
+      actionBar.className = "action-bar";
+      
+      var grid = document.getElementById("deviceGrid");
+      if (grid && grid.parentNode) {
+        grid.parentNode.insertBefore(actionBar, grid);
+      }
+    }
+
+    if (currentDevices.length === 0) {
+      actionBar.style.display = "none";
+      return;
+    }
+
+    actionBar.style.display = "flex";
+    var isAllSelected = currentDevices.length > 0 && selectedDeviceIds.length === currentDevices.length;
+
+    actionBar.innerHTML = 
+      '<div class="action-bar-left">' +
+        '<button class="btn-action btn-select-all" id="btnSelectAll">' +
+          (isAllSelected ? "🗹 Bỏ chọn tất cả" : "☐ Chọn tất cả") +
+        '</button>' +
+      '</div>' +
+      '<div class="action-bar-right" style="display: ' + (selectedDeviceIds.length > 0 ? 'flex' : 'none') + ';">' +
+        '<span class="selected-count">Đã chọn <strong>' + selectedDeviceIds.length + '</strong> thiết bị</span>' +
+        '<button class="btn-action btn-delete-bulk" id="btnDeleteBulk">🗑️ Xóa đã chọn</button>' +
+      '</div>';
+
+    document.getElementById("btnSelectAll").addEventListener("click", function () {
+      if (isAllSelected) {
+        selectedDeviceIds = [];
+      } else {
+        selectedDeviceIds = currentDevices.map(function (d) { return d.device_id; });
+      }
+      renderGrid(currentDevices);
+      renderActionBar();
+    });
+
+    if (selectedDeviceIds.length > 0) {
+      document.getElementById("btnDeleteBulk").addEventListener("click", function () {
+        if (!confirm("Xóa toàn bộ dữ liệu của " + selectedDeviceIds.length + " thiết bị đã chọn?")) return;
+
+        var deletePromises = selectedDeviceIds.map(function (id) {
+          return fetch("/admin/api/devices/" + encodeURIComponent(id), { method: "DELETE" })
+            .then(function (r) {
+              if (!r.ok) throw new Error("Thất bại tại ID: " + id);
+              return id;
+            });
+        });
+
+        Promise.all(deletePromises)
+          .then(function (deletedIds) {
+            currentDevices = currentDevices.filter(function (d) {
+              return !deletedIds.includes(d.device_id);
+            });
+            deletedIds.forEach(function (id) {
+              delete countdownStart[id];
+            });
+            selectedDeviceIds = []; 
+            
+            renderGrid(currentDevices);
+            updateSummary(currentDevices);
+            renderActionBar();
+          })
+          .catch(function (err) {
+            alert("Có lỗi xảy ra trong quá trình xóa: " + err.message);
+            fetchDevices(); 
+          });
+      });
+    }
+  }
+
+  // ─── Render Card ───────────────────────────────────────────
 
   function renderCard(device) {
     var state = getCountdownState(device.device_id);
@@ -126,15 +206,17 @@ function formatOfflineTime(seconds) {
     var countdownPrefix = isStable ? "" : state.label;
 
     var url = detailUrl(device);
+    var isSelected = selectedDeviceIds.includes(device.device_id);
 
     var card = document.createElement("div");
-    card.className = "device-card";
+    card.className = "device-card" + (isSelected ? " selected" : "");
     card.setAttribute("role", "button");
     card.setAttribute("tabindex", "0");
     card.setAttribute("data-device-id", device.device_id);
-    card.title = "Xem chi tiết " + device.device_id;
+    card.title = "Chọn/Bỏ chọn " + device.device_id;
 
     card.innerHTML =
+      '<div class="select-checkbox-indicator">' + (isSelected ? '✓' : '') + '</div>' +
       '<div class="device-card-header">' +
         '<div>' +
           '<div class="device-name">' + displayName(device.device_id) + '</div>' +
@@ -166,22 +248,35 @@ function formatOfflineTime(seconds) {
         '</span>' +
       '</div>' +
 
-      '<div class="card-arrow">' +
+      '<div class="card-arrow" title="Xem chi tiết thiết bị này">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" ' +
              'stroke-linecap="round" stroke-linejoin="round">' +
           '<path d="M5 12h14M13 6l6 6-6 6"/>' +
         '</svg>' +
       '</div>';
 
-    function openDetail() {
-      window.location.href = url;
+    card.addEventListener("click", function(e) {
+      if (isSelected) {
+        selectedDeviceIds = selectedDeviceIds.filter(function(id) { return id !== device.device_id; });
+      } else {
+        selectedDeviceIds.push(device.device_id);
+      }
+      renderGrid(currentDevices);
+      renderActionBar();
+    });
+
+    var arrowBtn = card.querySelector(".card-arrow");
+    if (arrowBtn) {
+      arrowBtn.addEventListener("click", function(e) {
+        e.stopPropagation(); 
+        window.location.href = url;
+      });
     }
 
-    card.addEventListener("click", openDetail);
     card.addEventListener("keydown", function (e) {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        openDetail();
+        card.click();
       }
     });
 
@@ -281,6 +376,9 @@ function formatOfflineTime(seconds) {
       .then(function (data) {
         currentDevices = data || [];
 
+        var currentIds = currentDevices.map(function(d) { return d.device_id; });
+        selectedDeviceIds = selectedDeviceIds.filter(function(id) { return currentIds.includes(id); });
+
         currentDevices.forEach(function (device) {
           updateStaleState(device);
         });
@@ -296,6 +394,7 @@ function formatOfflineTime(seconds) {
 
         renderGrid(currentDevices);
         updateSummary(currentDevices);
+        renderActionBar();
         refreshLastRefreshText();
       })
       .catch(function (err) {
@@ -325,7 +424,6 @@ function formatOfflineTime(seconds) {
 
   tickClock();
   setInterval(tickClock, 1000);
-
   setInterval(tickCountdowns, 1000);
 
   fetchDevices();
