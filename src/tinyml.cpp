@@ -1,8 +1,14 @@
 #include "tinyml.h"
 #include "risk_label.h"
 #include "serial_log.h"
+#include "temp_humi_monitor.h" // Chứa struct SharedContext
 
+// Bổ sung các thư viện hệ thống
 #include <math.h>
+
+// TODO: Sửa tên file này thành tên file chứa mảng dht_anomaly_model_tflite thực tế của bạn
+#include "dht_anomaly_model.h" 
+
 namespace
 {
     tflite::ErrorReporter *error_reporter = nullptr;
@@ -141,7 +147,9 @@ void tiny_ml_task(void *pvParameters)
         const int nout = tensor_element_count(output);
         const int best = argmax_float(output->data.f, nout);
         const int predicted = best + 1; // model classes 0..2 -> labels 1..3
-        const int expected = risk_final_label(temperature, humidity, soil_moisture);
+
+        // SỬA ĐỔI: So sánh với nhãn toán học gốc (không override) để tính Roll Accuracy cực chuẩn
+        const int expected = risk_pure_mathematical_label(temperature, humidity, soil_moisture);
 
         if (xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(200)) == pdTRUE)
         {

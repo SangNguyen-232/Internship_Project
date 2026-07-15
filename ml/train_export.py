@@ -1,10 +1,3 @@
-"""
-Generate CSV (temperature, humidity, soil_moisture, final_label),
-train a small Keras model, export float32 TFLite,
-and write ../include/dht_anomaly_model.h.
-
-Thresholds MUST match include/risk_label.h (copy kept in sync below).
-"""
 from __future__ import annotations
 
 import csv
@@ -14,37 +7,48 @@ import sys
 import numpy as np
 import contextlib
 
-# --- Sync with include/risk_label.h ---
+# --- Sync với include/risk_label.h ---
 
-def led_state_from_temperature(t: float) -> int:
-    if t >= 50.0:
-        return 3
-    if t >= 35.0:
-        return 2
-    return 1
-
-
-def neo_state_from_humidity(h: float) -> int:
-    if h >= 95.0:
-        return 3
-    if h >= 75.0:
-        return 2
-    return 1
+def _score_temperature(t: float) -> float:
+    if 20.0 <= t <= 30.0:
+        d = abs(t - 25.0)
+        return 2.0 + (d / 5.0) * 2.0
+    if (15.0 <= t < 20.0) or (30.0 < t <= 35.0):
+        d = (20.0 - t) / 5.0 if t < 20.0 else (t - 30.0) / 5.0
+        return 5.0 + d * 2.0
+    d = (15.0 - t) / 15.0 if t < 15.0 else (t - 35.0) / 20.0
+    return 8.0 + min(d, 1.0) * 2.0
 
 
-def soil_state_from_moisture(s: float) -> int:
-    if s < 20.0 or s > 90.0:
-        return 3
-    if s < 40.0 or s > 80.0:
-        return 2
-    return 1
+def _score_humidity(h: float) -> float:
+    if 50.0 <= h <= 70.0:
+        d = abs(h - 60.0)
+        return 2.0 + (d / 10.0) * 2.0
+    if (40.0 <= h < 50.0) or (70.0 < h <= 85.0):
+        d = (50.0 - h) / 10.0 if h < 50.0 else (h - 70.0) / 15.0
+        return 5.0 + d * 2.0
+    d = (40.0 - h) / 40.0 if h < 40.0 else (h - 85.0) / 15.0
+    return 8.0 + min(d, 1.0) * 2.0
+
+
+def _score_soil(s: float) -> float:
+    if 60.0 <= s <= 80.0:
+        d = abs(s - 70.0)
+        return 2.0 + (d / 10.0) * 2.0
+    if (40.0 <= s < 60.0) or (80.0 < s <= 90.0):
+        d = (60.0 - s) / 20.0 if s < 60.0 else (s - 80.0) / 10.0
+        return 5.0 + d * 2.0
+    d = (40.0 - s) / 40.0 if s < 40.0 else (s - 90.0) / 10.0
+    return 8.0 + min(d, 1.0) * 2.0
 
 
 def final_label(t: float, h: float, s: float) -> int:
-    a = led_state_from_temperature(t)
-    b = neo_state_from_humidity(h)
-    c = soil_state_from_moisture(s)
-    return max(a, b, c)
+    r = 0.3 * _score_temperature(t) + 0.2 * _score_humidity(h) + 0.5 * _score_soil(s)
+    if r <= 4.6:
+        return 1
+    if r <= 7.3:
+        return 2
+    return 3
 
 
 def build_dataset(
@@ -52,30 +56,27 @@ def build_dataset(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     rows: list[tuple[float, float, float, int]] = []
 
-    # 3-D grid near all decision boundaries
-    # Temperature boundaries: 35, 50
-    # Humidity boundaries:    75, 95
-    # Soil boundaries:        20, 40, 80, 90
-    for t in np.linspace(10.0, 55.0, 15):
-        for h in np.linspace(20.0, 100.0, 15):
-            for s in np.linspace(0.0, 100.0, 15):
+    # Grid quét dày quanh các ngưỡng mới
+    # T: 15, 20, 30, 35  |  H: 40, 50, 70, 85  |  S: 40, 60, 80, 90
+    for t in np.linspace(5.0, 50.0, 16):
+        for h in np.linspace(20.0, 100.0, 16):
+            for s in np.linspace(0.0, 100.0, 16):
                 for _ in range(2):
-                    tt = float(t + rng.normal(0, 0.25))
-                    hh = float(h + rng.normal(0, 0.75))
-                    ss = float(np.clip(s + rng.normal(0, 1.0), 0.0, 100.0))
-                    y = final_label(tt, hh, ss)
-                    rows.append((tt, hh, ss, y))
+                    tt = float(t + rng.normal(0, 0.3))
+                    hh = float(h + rng.normal(0, 0.5))
+                    ss = float(np.clip(s + rng.normal(0, 0.8), 0.0, 100.0))
+                    rows.append((tt, hh, ss, final_label(tt, hh, ss)))
 
-    # Extra random coverage
+    # Extra random
     for _ in range(n_extra):
-        tt = float(rng.uniform(10.0, 55.0))
+        tt = float(rng.uniform(5.0, 50.0))
         hh = float(rng.uniform(20.0, 100.0))
         ss = float(rng.uniform(0.0, 100.0))
         rows.append((tt, hh, ss, final_label(tt, hh, ss)))
 
     xs = np.array([[r[0], r[1], r[2]] for r in rows], dtype=np.float32)
     ys = np.array([r[3] for r in rows], dtype=np.int32)
-    ys0 = ys - 1  # Keras sparse labels 0..2
+    ys0 = ys - 1
     return xs, ys, ys0
 
 
