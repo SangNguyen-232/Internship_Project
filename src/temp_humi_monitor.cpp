@@ -71,7 +71,8 @@ void temp_humi_monitor(void *pvParameters) {
                 xSemaphoreGive(ctx->semNeoUpdate);
             }
 
-            const int newLcdState = risk_final_label(temperature, humidity);
+            // Now includes soil moisture in final risk label
+            const int newLcdState = risk_final_label(temperature, humidity, (float)soil_moisture);
             if (newLcdState != ctx->lcdState) {
                 ctx->lcdState = newLcdState;
                 xSemaphoreGive(ctx->semLCDUpdate);

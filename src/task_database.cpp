@@ -15,6 +15,14 @@ static String formatTimestamp(time_t t)
     return String(buf);
 }
 
+// Derive rule-based status label from lcdState (1=Normal, 2=Warning, 3=Critical)
+static const char* ruleStatusLabel(int lcdState)
+{
+    if (lcdState == 3) return "Critical";
+    if (lcdState == 2) return "Warning";
+    return "Normal";
+}
+
 void task_database(void *pvParameters)
 {
     SharedContext *ctx = static_cast<SharedContext *>(pvParameters);
@@ -39,27 +47,19 @@ void task_database(void *pvParameters)
         }
 
         float temperature = 0, humidity = 0;
-        int soilMoisture = 0, ledState = 1, neoState = 1, lcdState = 1;
-        int mlPredicted = 0;
-        float mlConfidence = 0;
+        int soilMoisture = 0, lcdState = 1;
+        float mlRollAcc = 0;
         time_t timestampReal = 0;
         String pumpState, modeState;
-        char mlStatus[16] = "Mismatch";
-        float mlRollAcc = 0;
 
         if (ctx != NULL && xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(2000)) == pdTRUE)
         {
-            temperature = ctx->temperature;
-            humidity = ctx->humidity;
-            soilMoisture = ctx->soilMoisture;
-            ledState = ctx->ledState;
-            neoState = ctx->neoState;
-            lcdState = ctx->lcdState;
-            mlPredicted = ctx->mlPredicted;
-            mlConfidence = ctx->mlConfidence;
-            timestampReal = ctx->timestampReal;
-            strncpy(mlStatus, ctx->mlStatus, sizeof(mlStatus) - 1);
-            mlRollAcc = ctx->mlRollAcc;
+            temperature    = ctx->temperature;
+            humidity       = ctx->humidity;
+            soilMoisture   = ctx->soilMoisture;
+            lcdState       = ctx->lcdState;       // risk_final_label(t, h, soil)
+            mlRollAcc      = ctx->mlRollAcc;
+            timestampReal  = ctx->timestampReal;
             xSemaphoreGive(ctx->mutexContext);
         }
 
@@ -81,7 +81,7 @@ void task_database(void *pvParameters)
         payload += "  \"soil_moisture\":\"" + String(soilBuf) + "%\",\n";
         payload += "  \"PUMP_state\":\"" + pumpState + "\",\n";
         payload += "  \"MODE_state\":\"" + modeState + "\",\n";
-        payload += "  \"Message\":\"" + String(mlStatus) + "\",\n";
+        payload += "  \"Message\":\"" + String(ruleStatusLabel(lcdState)) + "\",\n";  // rule-based: max(temp, humi, soil)
         payload += "  \"Score\":\"" + String(mlRollAcc >= 100.0f ? "100" : String(mlRollAcc, 2)) + "%\",\n";
         payload += "  \"device_id\":\"" + WiFi.localIP().toString() + "\"\n";
         payload += "}";

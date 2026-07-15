@@ -69,9 +69,9 @@ void setupTinyML()
         error_reporter->Report("TinyML: expected float32 input/output");
         return;
     }
-    if (tensor_element_count(input) != 2 || tensor_element_count(output) != 3)
+    if (tensor_element_count(input) != 3 || tensor_element_count(output) != 3)
     {
-        error_reporter->Report("TinyML: need input 2 floats, output 3 (softmax). Re-run ml/train_export.py");
+        error_reporter->Report("TinyML: need input 3 floats (temp,humi,soil), output 3 (softmax). Re-run ml/train_export.py");
         return;
     }
 
@@ -107,11 +107,13 @@ void tiny_ml_task(void *pvParameters)
     {
         float temperature = 0.0f;
         float humidity = 0.0f;
+        float soil_moisture = 0.0f;
 
         if (xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(2000)) == pdTRUE)
         {
-            temperature = ctx->temperature;
-            humidity = ctx->humidity;
+            temperature   = ctx->temperature;
+            humidity      = ctx->humidity;
+            soil_moisture = (float)ctx->soilMoisture;
             xSemaphoreGive(ctx->mutexContext);
         }
 
@@ -125,6 +127,7 @@ void tiny_ml_task(void *pvParameters)
 
         input->data.f[0] = temperature;
         input->data.f[1] = humidity;
+        input->data.f[2] = soil_moisture;
 
         const unsigned long t0 = millis();
         if (interpreter->Invoke() != kTfLiteOk)
@@ -138,7 +141,7 @@ void tiny_ml_task(void *pvParameters)
         const int nout = tensor_element_count(output);
         const int best = argmax_float(output->data.f, nout);
         const int predicted = best + 1; // model classes 0..2 -> labels 1..3
-        const int expected = risk_final_label(temperature, humidity);
+        const int expected = risk_final_label(temperature, humidity, soil_moisture);
 
         if (xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(200)) == pdTRUE)
         {
@@ -167,8 +170,8 @@ void tiny_ml_task(void *pvParameters)
         }
 
         serialLogLock();
-        Serial.printf("TinyML T=%.1f°C H=%.1f%% | rule=%d pred=%d | %s | p=[%.2f,%.2f,%.2f] | %lums | roll_acc=%.1f%% (%lu/%lu)\n",
-                      temperature, humidity, expected, predicted,
+        Serial.printf("TinyML T=%.1f°C H=%.1f%% S=%02d%% | rule=%d pred=%d | %s | p=[%.2f,%.2f,%.2f] | %lums | roll_acc=%.1f%% (%lu/%lu)\n",
+                      temperature, humidity, (int)soil_moisture, expected, predicted,
                       status,
                       output->data.f[0], output->data.f[1], output->data.f[2],
                       (unsigned long)(t1 - t0),
