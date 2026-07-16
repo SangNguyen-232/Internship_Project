@@ -162,14 +162,18 @@ void tiny_ml_task(void *pvParameters)
         // 3. Generate dynamic status string for Serial Log
         char log_status_str[64];
         if (is_safety_triggered) {
-            snprintf(log_status_str, sizeof(log_status_str), "%s -> Critical", status);
+            if (strcmp(status, "Critical") == 0) {
+                snprintf(log_status_str, sizeof(log_status_str), "%s", status);
+            } else {
+                snprintf(log_status_str, sizeof(log_status_str), "%s -> Critical", status);
+            }
         } else {
             snprintf(log_status_str, sizeof(log_status_str), "%s", status);
         }
 
         if (xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(200)) == pdTRUE)
         {
-            strncpy(ctx->mlStatus, status, sizeof(ctx->mlStatus) - 1);
+            strncpy(ctx->mlStatus, is_safety_triggered ? "Critical" : status, sizeof(ctx->mlStatus) - 1);
             ctx->mlStatus[sizeof(ctx->mlStatus) - 1] = '\0';
             ctx->mlRollAcc = inferences ? (100.0f * (float)correct / (float)inferences) : 0.0f;
             xSemaphoreGive(ctx->mutexContext);

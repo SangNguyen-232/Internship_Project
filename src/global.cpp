@@ -3,6 +3,7 @@
 float glob_temperature = 0;
 float glob_humidity = 0;
 float glob_soil = 0;
+volatile unsigned long g_lastDBPostMs = 0;
 
 String wifi_ssid = "";
 String wifi_pass = "";

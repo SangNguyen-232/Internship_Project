@@ -33,6 +33,11 @@ void task_database(void *pvParameters)
 
         vTaskDelay(200 / portTICK_PERIOD_MS);
 
+        if (millis() - g_lastDBPostMs < 500)
+        {
+            continue;
+        }
+
         if (WiFi.status() != WL_CONNECTED)
         {
             continue;
@@ -46,30 +51,45 @@ void task_database(void *pvParameters)
             continue;
         }
 
-        float temperature = 0, humidity = 0;
-        int soilMoisture = 0, lcdState = 1;
-        float mlRollAcc = 0;
+        float temperature = 0.0f;
+        float humidity = 0.0f;
+        int soilMoisture = 0;
+        int lcdState = 1;
+        float mlRollAcc = 0.0f;
         time_t timestampReal = 0;
-        String pumpState, modeState;
+        time_t timestampUp = 0;
+        String pumpState;
+        String modeState;
 
         if (ctx != NULL && xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(2000)) == pdTRUE)
         {
-            temperature    = ctx->temperature;
-            humidity       = ctx->humidity;
-            soilMoisture   = ctx->soilMoisture;
-            lcdState       = ctx->lcdState;       // risk_final_label(t, h, soil)
-            mlRollAcc      = ctx->mlRollAcc;
-            timestampReal  = ctx->timestampReal;
+            temperature  = ctx->temperature;
+            humidity     = ctx->humidity;
+            soilMoisture = ctx->soilMoisture;
+            lcdState     = ctx->lcdState;   // risk_final_label(t, h, soil)
+            mlRollAcc    = ctx->mlRollAcc;
             xSemaphoreGive(ctx->mutexContext);
         }
 
-        if (xSemaphoreTake(xMutexPumpControl, pdMS_TO_TICKS(2000)) == pdTRUE) {
+        if (xSemaphoreTake(xMutexPumpControl, pdMS_TO_TICKS(2000)) == pdTRUE)
+        {
             pumpState = global_pump_state;
-            modeState = global_pump_mode;
+            modeState  = global_pump_mode;
             xSemaphoreGive(xMutexPumpControl);
         }
 
-        time_t timestampUp = time(nullptr);
+        timestampReal = time(nullptr);
+        timestampUp   = time(nullptr);
+
+        String scoreStr;
+        if (mlRollAcc >= 100.0f)
+        {
+            scoreStr = "100";
+        }
+        else
+        {
+            scoreStr = String(mlRollAcc, 2);
+        }
 
         String payload = "{\n";
         payload += "  \"timestamp_real\":\"" + formatTimestamp(timestampReal) + "\",\n";
@@ -81,8 +101,8 @@ void task_database(void *pvParameters)
         payload += "  \"soil_moisture\":\"" + String(soilBuf) + "%\",\n";
         payload += "  \"PUMP_state\":\"" + pumpState + "\",\n";
         payload += "  \"MODE_state\":\"" + modeState + "\",\n";
-        payload += "  \"Message\":\"" + String(ruleStatusLabel(lcdState)) + "\",\n";  // rule-based: max(temp, humi, soil)
-        payload += "  \"Score\":\"" + String(mlRollAcc >= 100.0f ? "100" : String(mlRollAcc, 2)) + "%\",\n";
+        payload += "  \"Message\":\"" + String(ruleStatusLabel(lcdState)) + "\",\n";
+        payload += "  \"Score\":\"" + scoreStr + "%\",\n";
         payload += "  \"device_id\":\"" + WiFi.localIP().toString() + "\"\n";
         payload += "}";
 
@@ -97,10 +117,16 @@ void task_database(void *pvParameters)
 
         serialLogLock();
         if (httpCode > 0)
+        {
             Serial.printf("[DB] POST thành công -> %d\n", httpCode);
+        }
         else
+        {
             Serial.printf("[DB] POST thất bại: %s\n", http.errorToString(httpCode).c_str());
+        }
         serialLogUnlock();
+
         http.end();
+        g_lastDBPostMs = millis();
     }
 }

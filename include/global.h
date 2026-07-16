@@ -29,6 +29,7 @@ struct SharedContext {
 extern float glob_temperature;
 extern float glob_humidity;
 extern float glob_soil;
+extern volatile unsigned long g_lastDBPostMs;
 
 extern String wifi_ssid;
 extern String wifi_pass;
