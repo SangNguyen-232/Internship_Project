@@ -3,71 +3,70 @@ from __future__ import annotations
 import csv
 import os
 import sys
-
 import numpy as np
 import contextlib
 
-# --- Sync với include/risk_label.h ---
 
 def _score_temperature(t: float) -> float:
-    if 20.0 <= t <= 30.0:
-        d = abs(t - 25.0)
-        return 2.0 + (d / 5.0) * 2.0
-    if (15.0 <= t < 20.0) or (30.0 < t <= 35.0):
-        d = (20.0 - t) / 5.0 if t < 20.0 else (t - 30.0) / 5.0
-        return 5.0 + d * 2.0
-    d = (15.0 - t) / 15.0 if t < 15.0 else (t - 35.0) / 20.0
-    return 8.0 + min(d, 1.0) * 2.0
+    if 15.0 <= t <= 25.0:
+        return 0.0
+    if 10.0 <= t < 15.0:
+        return 5.0 * ((15.0 - t) / 5.0)
+    if 25.0 < t <= 30.0:
+        return 5.0 * ((t - 25.0) / 5.0)
+    if t < 10.0:
+        return 5.0 + 5.0 * min((10.0 - t) / 10.0, 1.0)
+    return 5.0 + 5.0 * min((t - 30.0) / 10.0, 1.0)
 
 
 def _score_humidity(h: float) -> float:
-    if 50.0 <= h <= 70.0:
-        d = abs(h - 60.0)
-        return 2.0 + (d / 10.0) * 2.0
-    if (40.0 <= h < 50.0) or (70.0 < h <= 85.0):
-        d = (50.0 - h) / 10.0 if h < 50.0 else (h - 70.0) / 15.0
-        return 5.0 + d * 2.0
-    d = (40.0 - h) / 40.0 if h < 40.0 else (h - 85.0) / 15.0
-    return 8.0 + min(d, 1.0) * 2.0
+    if 60.0 <= h <= 70.0:
+        return 0.0
+    if 50.0 <= h < 60.0:
+        return 5.0 * ((60.0 - h) / 10.0)
+    if 70.0 < h <= 80.0:
+        return 5.0 * ((h - 70.0) / 10.0)
+    if h < 50.0:
+        return 5.0 + 5.0 * min((50.0 - h) / 20.0, 1.0)
+    return 5.0 + 5.0 * min((h - 80.0) / 15.0, 1.0)
 
 
 def _score_soil(s: float) -> float:
-    if 60.0 <= s <= 80.0:
-        d = abs(s - 70.0)
-        return 2.0 + (d / 10.0) * 2.0
-    if (40.0 <= s < 60.0) or (80.0 < s <= 90.0):
-        d = (60.0 - s) / 20.0 if s < 60.0 else (s - 80.0) / 10.0
-        return 5.0 + d * 2.0
-    d = (40.0 - s) / 40.0 if s < 40.0 else (s - 90.0) / 10.0
-    return 8.0 + min(d, 1.0) * 2.0
+    if 30.0 <= s <= 40.0:
+        return 0.0
+    if 25.0 <= s < 30.0:
+        return 5.0 * ((30.0 - s) / 5.0)
+    if 40.0 < s <= 45.0:
+        return 5.0 * ((s - 40.0) / 5.0)
+    if s < 25.0:
+        return 5.0 + 5.0 * min((25.0 - s) / 20.0, 1.0)
+    return 5.0 + 5.0 * min((s - 45.0) / 15.0, 1.0)
 
 
 def final_label(t: float, h: float, s: float) -> int:
-    r = 0.3 * _score_temperature(t) + 0.2 * _score_humidity(h) + 0.5 * _score_soil(s)
-    if r <= 4.6:
+    r = 0.35 * _score_temperature(t) + 0.20 * _score_humidity(h) + 0.45 * _score_soil(s)
+    if r <= 3.0:
         return 1
-    if r <= 7.3:
+    if r <= 6.5:
         return 2
     return 3
 
 
 def build_dataset(
-    rng: np.random.Generator, n_extra: int = 4000
+    rng: np.random.Generator, n_extra: int = 5000
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     rows: list[tuple[float, float, float, int]] = []
 
-    # Grid quét dày quanh các ngưỡng mới
-    # T: 15, 20, 30, 35  |  H: 40, 50, 70, 85  |  S: 40, 60, 80, 90
-    for t in np.linspace(5.0, 50.0, 16):
-        for h in np.linspace(20.0, 100.0, 16):
-            for s in np.linspace(0.0, 100.0, 16):
+    # Dense scanning around new boundary nodes so the model learns the decision boundaries accurately
+    for t in np.linspace(5.0, 50.0, 20):
+        for h in np.linspace(20.0, 100.0, 20):
+            for s in np.linspace(0.0, 100.0, 20):
                 for _ in range(2):
-                    tt = float(t + rng.normal(0, 0.3))
-                    hh = float(h + rng.normal(0, 0.5))
-                    ss = float(np.clip(s + rng.normal(0, 0.8), 0.0, 100.0))
+                    tt = float(t + rng.normal(0, 0.2))
+                    hh = float(h + rng.normal(0, 0.3))
+                    ss = float(np.clip(s + rng.normal(0, 0.5), 0.0, 100.0))
                     rows.append((tt, hh, ss, final_label(tt, hh, ss)))
 
-    # Extra random
     for _ in range(n_extra):
         tt = float(rng.uniform(5.0, 50.0))
         hh = float(rng.uniform(20.0, 100.0))
@@ -92,7 +91,7 @@ def write_csv(path: str, xs: np.ndarray, ys: np.ndarray) -> None:
 def tflite_to_header(tflite_bytes: bytes, out_path: str) -> None:
     lines = ["#pragma once", "", "const unsigned char dht_anomaly_model_tflite[] = {"]
     row: list[str] = []
-    for i, b in enumerate(tflite_bytes):
+    for b in tflite_bytes:
         row.append(f"0x{b:02x}")
         if len(row) == 12:
             lines.append("  " + ", ".join(row) + ",")
@@ -132,8 +131,8 @@ def main() -> int:
 
     model = tf.keras.Sequential(
         [
-            tf.keras.layers.Input(shape=(3,)),          # temperature, humidity, soil_moisture
-            tf.keras.layers.Dense(24, activation="relu"),
+            tf.keras.layers.Input(shape=(3,)),
+            tf.keras.layers.Dense(32, activation="relu"),
             tf.keras.layers.Dense(16, activation="relu"),
             tf.keras.layers.Dense(3,  activation="softmax"),
         ]
@@ -157,7 +156,7 @@ def main() -> int:
     model.fit(
         xs[tr], ys0[tr],
         validation_data=(xs[va], ys0[va]),
-        epochs=50,
+        epochs=80,
         batch_size=64,
         verbose=1,
         callbacks=[early],

@@ -3,8 +3,7 @@
 #include "serial_log.h"
 #include "task_webserver.h"
 
-// CHÚ Ý: GPIO 2 thuộc bộ ADC2. Trên ESP32, khi bật WiFi, ADC2 sẽ không đọc được tín hiệu. 
-// Hãy đổi sang các chân ADC1 (như 32, 33, 34, 35) nếu bạn đang kết nối WiFi.
+// #define SOIL_PIN 6 
 #define SOIL_PIN 2 
 
 DHT20 dht20;
@@ -28,7 +27,6 @@ void temp_humi_monitor(void *pvParameters) {
     lcd.setCursor(1, 0);
     lcd.print("IOT ASSIGNMENT");
     
-    // Đổi delay thường thành delay của FreeRTOS
     vTaskDelay(pdMS_TO_TICKS(5000));
     lcd.clear();
 
@@ -41,8 +39,6 @@ void temp_humi_monitor(void *pvParameters) {
         int soil_moisture = map(raw_soil, 0, 4095, 0, 100);
 
         if (isnan(temperature) || isnan(humidity)) {
-            serialLogLock();
-            serialLogUnlock();
             temperature = humidity = -1;
         }
 
@@ -75,7 +71,6 @@ void temp_humi_monitor(void *pvParameters) {
                 xSemaphoreGive(ctx->semNeoUpdate);
             }
 
-            // Sử dụng nhãn an toàn có tích hợp chốt chặn khẩn cấp để đưa lên LCD điều khiển
             const int newLcdState = risk_final_safety_label(temperature, humidity, (float)soil_moisture);
             if (newLcdState != ctx->lcdState) {
                 ctx->lcdState = newLcdState;
@@ -120,7 +115,6 @@ void temp_humi_monitor(void *pvParameters) {
                             ",\"soil_moisture\":" + String(soil_moisture) + "}";
         Webserver_sendata(wsPayload);
 
-        // Đổi hàm delay để tránh lỗi Crash Task
         vTaskDelay(pdMS_TO_TICKS(5000)); 
     }
 }

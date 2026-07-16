@@ -1,12 +1,9 @@
 #include "tinyml.h"
 #include "risk_label.h"
 #include "serial_log.h"
-#include "temp_humi_monitor.h" // Chứa struct SharedContext
+#include "temp_humi_monitor.h"
 
-// Bổ sung các thư viện hệ thống
 #include <math.h>
-
-// TODO: Sửa tên file này thành tên file chứa mảng dht_anomaly_model_tflite thực tế của bạn
 #include "dht_anomaly_model.h" 
 
 namespace
@@ -43,8 +40,6 @@ namespace
 void setupTinyML()
 {
     s_tinyml_ready = false;
-    serialLogLock();
-    serialLogUnlock();
     static tflite::MicroErrorReporter micro_error_reporter;
     error_reporter = &micro_error_reporter;
 
@@ -82,8 +77,6 @@ void setupTinyML()
     }
 
     s_tinyml_ready = true;
-    serialLogLock();
-    serialLogUnlock();
 }
 
 void tiny_ml_task(void *pvParameters)
@@ -91,8 +84,6 @@ void tiny_ml_task(void *pvParameters)
     SharedContext *ctx = static_cast<SharedContext *>(pvParameters);
     if (!ctx)
     {
-        serialLogLock();
-        serialLogUnlock();
         vTaskDelete(nullptr);
         return;
     }
@@ -100,8 +91,6 @@ void tiny_ml_task(void *pvParameters)
     setupTinyML();
     if (!s_tinyml_ready)
     {
-        serialLogLock();
-        serialLogUnlock();
         vTaskDelete(nullptr);
         return;
     }
@@ -125,8 +114,6 @@ void tiny_ml_task(void *pvParameters)
 
         if (isnan(temperature) || isnan(humidity) || temperature < 0.0f || humidity < 0.0f)
         {
-            serialLogLock();
-            serialLogUnlock();
             vTaskDelay(pdMS_TO_TICKS(5000));
             continue;
         }
@@ -146,9 +133,8 @@ void tiny_ml_task(void *pvParameters)
 
         const int nout = tensor_element_count(output);
         const int best = argmax_float(output->data.f, nout);
-        const int predicted = best + 1; // model classes 0..2 -> labels 1..3
+        const int predicted = best + 1; // Map index (0..2) -> Label (1..3)
 
-        // SỬA ĐỔI: So sánh với nhãn toán học gốc (không override) để tính Roll Accuracy cực chuẩn
         const int expected = risk_pure_mathematical_label(temperature, humidity, soil_moisture);
 
         if (xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(200)) == pdTRUE)
@@ -162,11 +148,23 @@ void tiny_ml_task(void *pvParameters)
             correct++;
         inferences++;
 
+        // 1. Determine baseline status by comparing AI prediction and Math rule
         const char* status = "Mismatch"; 
         if (expected == predicted) {
             if (expected == 1) status = "Normal";
             else if (expected == 2) status = "Warning";
             else if (expected == 3) status = "Critical";
+        }
+
+        // 2. Check the condition to trigger ultimate emergency safety interlock
+        bool is_safety_triggered = (temperature >= 40.0f || humidity >= 90.0f || soil_moisture < 15.0f || soil_moisture > 60.0f);
+
+        // 3. Generate dynamic status string for Serial Log
+        char log_status_str[64];
+        if (is_safety_triggered) {
+            snprintf(log_status_str, sizeof(log_status_str), "%s -> Critical", status);
+        } else {
+            snprintf(log_status_str, sizeof(log_status_str), "%s", status);
         }
 
         if (xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(200)) == pdTRUE)
@@ -180,7 +178,7 @@ void tiny_ml_task(void *pvParameters)
         serialLogLock();
         Serial.printf("TinyML T=%.1f°C H=%.1f%% S=%02d%% | rule=%d pred=%d | %s | p=[%.2f,%.2f,%.2f] | %lums | roll_acc=%.1f%% (%lu/%lu)\n",
                       temperature, humidity, (int)soil_moisture, expected, predicted,
-                      status,
+                      log_status_str,
                       output->data.f[0], output->data.f[1], output->data.f[2],
                       (unsigned long)(t1 - t0),
                       inferences ? (100.0f * (float)correct / (float)inferences) : 0.0f,
