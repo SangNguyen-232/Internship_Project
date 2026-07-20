@@ -431,3 +431,131 @@ html, body {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ─── Device Login Modal ─── */
+.login-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  animation: fadeInOverlay 0.15s ease;
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.login-modal-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 26px 20px;
+  width: 90%;
+  max-width: 340px;
+  animation: slideUp 0.18s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.login-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.login-modal-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.login-modal-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.login-device-id {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 16px;
+  word-break: break-all;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.login-field label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.login-field input {
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.login-field input:focus {
+  border-color: var(--accent);
+}
+
+.login-submit-btn {
+  width: 100%;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.login-submit-btn:hover { background: #4f7df5; }
+.login-submit-btn:active { transform: translateY(1px); }
+.login-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.login-msg {
+  margin-top: 10px;
+  font-size: 12px;
+  min-height: 18px;
+  text-align: center;
+}
+
+.login-msg.error   { color: var(--red); }
+.login-msg.success { color: var(--green); }
+
+.login-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0 14px;
+}
+
+.login-set-title {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Đăng nhập – ESP32 IoT</title>
+<style>
+  :root {
+    --bg:       #0b1220;
+    --surface:  #0d1526;
+    --card:     #131c30;
+    --border:   rgba(255,255,255,0.07);
+    --text:     #eef1f8;
+    --muted:    #828ba3;
+    --accent:   #3b6df0;
+    --accent-h: #4f7df5;
+    --green:    #2ecc71;
+    --red:      #ef4444;
+    --red-soft: rgba(239,68,68,0.12);
+    --purple:   #b06af7;
+    --radius:   14px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Nền lưới chấm trang trí ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(rgba(59,109,240,0.08) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+  }
+
+  .login-wrap {
+    width: 100%;
+    max-width: 380px;
+    padding: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Brand ── */
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 16px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .brand-name {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  /* ── Card ── */
+  .login-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 28px 24px;
+  }
+
+  .login-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .login-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 24px;
+  }
+
+  /* ── Form ── */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .field label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .field input {
+    padding: 10px 12px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .field input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59,109,240,0.18);
+  }
+
+  .field input::placeholder { color: var(--muted); }
+
+  /* ── Button ── */
+  .btn-login {
+    width: 100%;
+    padding: 11px;
+    background: var(--accent);
+    border: none;
+    border-radius: 9px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn-login:hover  { background: var(--accent-h); }
+  .btn-login:active { transform: translateY(1px); }
+  .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* ── Spinner nhỏ trong button ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .btn-spinner {
+    display: none;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  .btn-login.loading .btn-spinner { display: block; }
+  .btn-login.loading .btn-text   { opacity: 0.7; }
+
+  /* ── Error message ── */
+  .login-err {
+    display: none;
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: var(--red-soft);
+    border: 1px solid rgba(239,68,68,0.25);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--red);
+  }
+
+  .login-err.show { display: block; }
+
+  /* ── Footer note ── */
+  .login-note {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+
+<div class="login-wrap">
+
+  <div class="brand">
+    <span class="brand-mark">E</span>
+    <span class="brand-name">ESP32 IoT</span>
+  </div>
+
+  <div class="login-card">
+    <div class="login-title">Đăng nhập hệ thống</div>
+    <div class="login-sub">Nhập tài khoản được cấp để tiếp tục</div>
+
+    <div class="field">
+      <label for="username">Tên đăng nhập</label>
+      <input type="text" id="username" placeholder="username" autocomplete="username" autofocus />
+    </div>
+
+    <div class="field">
+      <label for="password">Mật khẩu</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+
+    <button class="btn-login" id="btnLogin">
+      <span class="btn-spinner"></span>
+      <span class="btn-text">Đăng nhập</span>
+    </button>
+
+    <div class="login-err" id="loginErr"></div>
+  </div>
+
+  <div class="login-note">ESP32 IoT Fleet Management &mdash; Chỉ dành cho người dùng được cấp quyền</div>
+
+</div>
+
+<script>
+(function () {
+  var usernameEl = document.getElementById('username');
+  var passwordEl = document.getElementById('password');
+  var btnLogin   = document.getElementById('btnLogin');
+  var errEl      = document.getElementById('loginErr');
+
+  function setError(msg) {
+    errEl.textContent = msg;
+    errEl.classList.add('show');
+  }
+
+  function clearError() {
+    errEl.classList.remove('show');
+  }
+
+  function setLoading(on) {
+    btnLogin.disabled = on;
+    btnLogin.classList.toggle('loading', on);
+  }
+
+  function doLogin() {
+    clearError();
+    var username = usernameEl.value.trim();
+    var password = passwordEl.value;
+
+    if (!username || !password) {
+      setError('Vui lòng nhập tên đăng nhập và mật khẩu.');
+      return;
+    }
+
+    setLoading(true);
+
+    fetch('/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username, password: password })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        setLoading(false);
+        if (data.ok) {
+          window.location.href = '/admin/admin.html';
+        } else {
+          setError(data.error || 'Đăng nhập thất bại.');
+          passwordEl.value = '';
+          passwordEl.focus();
+        }
+      })
+      .catch(function () {
+        setLoading(false);
+        setError('Không kết nối được server. Thử lại sau.');
+      });
+  }
+
+  btnLogin.addEventListener('click', doLogin);
+
+  [usernameEl, passwordEl].forEach(function (el) {
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') doLogin();
+    });
+  });
+})();
+</script>
+</body>
+</html>

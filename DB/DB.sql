@@ -17,6 +17,12 @@ CREATE TABLE "sensor_logs" (
   "trigger_source" text
 );
 
-CREATE USER iot_user WITH PASSWORD 'iot_password';
+CREATE TABLE device_credentials (
+  device_id text PRIMARY KEY,
+  password  text NOT NULL
+);
+
+CREATE USER iot_user WITH PASSWORD '004232';
 GRANT ALL PRIVILEGES ON TABLE sensor_logs TO iot_user;
 GRANT USAGE, SELECT ON SEQUENCE sensor_logs_id_seq TO iot_user;
+GRANT ALL PRIVILEGES ON TABLE device_credentials TO iot_user;

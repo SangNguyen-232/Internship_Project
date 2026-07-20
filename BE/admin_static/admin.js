@@ -1,16 +1,87 @@
 (function () {
   "use strict";
 
-  var STALE_DIFF_MS = 10 * 1000; 
-  var COUNTDOWN_SECONDS = 5;      
+  // ─── Auth state (được load từ /api/me khi khởi động) ───────
+  var currentUser = null;   // { username, role }
+
+  var STALE_DIFF_MS = 10 * 1000;
+  var COUNTDOWN_SECONDS = 5;
 
   var countdownStart = {};
   var currentDevices = [];
   var selectedDeviceIds = [];
   var latestTimestampUp = null;
 
-  // ─── WebSocket per-device (realtime, mirrors LCD & device dashboard) ───
   var deviceWsMap = {};
+
+  // ─── Load user info, redirect nếu chưa login ───────────────
+  function loadCurrentUser(cb) {
+    fetch('/api/me')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.loggedIn) {
+          window.location.href = '/login';
+          return;
+        }
+        currentUser = { username: data.username, role: data.role };
+        renderUserBar();
+        cb();
+      })
+      .catch(function () {
+        window.location.href = '/login';
+      });
+  }
+
+  // ─── Render thanh user + nút logout trên header ────────────
+  function renderUserBar() {
+    var headerRight = document.querySelector('.header-right');
+    if (!headerRight) return;
+
+    var existing = document.getElementById('userBar');
+    if (existing) existing.remove();
+
+    var bar = document.createElement('div');
+    bar.id = 'userBar';
+    bar.style.cssText = 'display:flex;align-items:center;gap:10px;';
+
+    var roleColor = currentUser.role === 'admin' ? '#b06af7' : '#4aa3ff';
+    var rolePill = document.createElement('span');
+    rolePill.style.cssText =
+      'font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;' +
+      'background:' + (currentUser.role === 'admin' ? 'rgba(176,106,247,0.15)' : 'rgba(74,163,255,0.15)') + ';' +
+      'color:' + roleColor + ';';
+    rolePill.textContent = (currentUser.role === 'admin' ? '⚙ Admin' : '👤 User') + ' · ' + currentUser.username;
+
+    var btnLogout = document.createElement('button');
+    btnLogout.className = 'btn-refresh';
+    btnLogout.style.cssText = 'color:#ef4444;border-color:rgba(239,68,68,0.3);';
+    btnLogout.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;">' +
+        '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>' +
+        '<polyline points="16 17 21 12 16 7"/>' +
+        '<line x1="21" y1="12" x2="9" y2="12"/>' +
+      '</svg> Đăng xuất';
+    btnLogout.addEventListener('click', doLogout);
+
+    bar.appendChild(rolePill);
+    bar.appendChild(btnLogout);
+    headerRight.insertBefore(bar, headerRight.firstChild);
+  }
+
+  function doLogout() {
+    fetch('/logout', { method: 'POST' })
+      .then(function () { window.location.href = '/login'; })
+      .catch(function () { window.location.href = '/login'; });
+  }
+
+  // ─── Kiểm tra quyền Admin ──────────────────────────────────
+  function isAdmin() {
+    return currentUser && currentUser.role === 'admin';
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ── Toàn bộ logic gốc từ đây trở xuống — KHÔNG THAY ĐỔI ──
+  // ═══════════════════════════════════════════════════════════
 
   function connectDeviceWS(deviceId) {
     if (deviceWsMap[deviceId]) {
@@ -49,7 +120,6 @@
         }
       }
 
-      // Reset stale countdown khi nhận data trực tiếp từ thiết bị
       var idx = currentDevices.findIndex(function (d) { return d.device_id === deviceId; });
       if (idx !== -1) {
         currentDevices[idx].timestamp_up = new Date().toISOString();
@@ -82,8 +152,6 @@
     return "http://" + device.device_id + "/";
   }
 
-  // ─── Helpers ───────────────────────────────────────────────
-
   function fmtValue(v) {
     return (v !== null && v !== undefined && v !== "") ? v : "—";
   }
@@ -102,30 +170,14 @@
 
   function formatOfflineTime(seconds) {
     seconds = Math.max(0, Math.floor(seconds));
-
     var h = Math.floor(seconds / 3600);
     var m = Math.floor((seconds % 3600) / 60);
     var s = seconds % 60;
-
     var parts = [];
-
-    if (h > 0) {
-      parts.push(h + "h");
-    }
-
-    if (m > 0) {
-      parts.push(m + "m");
-    }
-
-    if (s > 0) {
-      parts.push(s + "s");
-    }
-
-    if (parts.length === 0) {
-      return "0s";
-    }
-
-    return parts.join("");
+    if (h > 0) parts.push(h + "h");
+    if (m > 0) parts.push(m + "m");
+    if (s > 0) parts.push(s + "s");
+    return parts.length === 0 ? "0s" : parts.join("");
   }
 
   function getTimestampMs(device) {
@@ -134,22 +186,14 @@
     return isNaN(ts) ? null : ts;
   }
 
-  // ─── Stale detection sau mỗi fetch ─────────────────────────
-
   function updateStaleState(device) {
     var id = device.device_id;
-
     if (!device.timestamp_up) return;
-
     var ts = getTimestampMs(device);
     if (ts === null) return;
-
-    var age = Date.now() - ts; 
-
+    var age = Date.now() - ts;
     if (age >= STALE_DIFF_MS) {
-      if (!countdownStart[id]) {
-        countdownStart[id] = ts + STALE_DIFF_MS;
-      }
+      if (!countdownStart[id]) countdownStart[id] = ts + STALE_DIFF_MS;
     } else {
       delete countdownStart[id];
     }
@@ -158,22 +202,14 @@
   function getCountdownState(deviceId) {
     var start = countdownStart[deviceId];
     if (!start) return null;
-
     var elapsed = Math.floor((Date.now() - start) / 1000);
     var remaining = COUNTDOWN_SECONDS - elapsed;
-
     if (remaining > 0) {
       return { isOnline: true, text: remaining + "s", label: "Đếm ngược: " };
     } else {
       var offlineElapsed = elapsed - COUNTDOWN_SECONDS;
-
       var roundedOfflineSeconds = Math.floor(offlineElapsed / 30) * 30;
-
-      return {
-        isOnline: false,
-        text: formatOfflineTime(roundedOfflineSeconds),
-        label: "Đã Offline: "
-      };
+      return { isOnline: false, text: formatOfflineTime(roundedOfflineSeconds), label: "Đã Offline: " };
     }
   }
 
@@ -182,20 +218,16 @@
     return (state === null || state.isOnline);
   }
 
-  // ─── Render Action Bar (JS inject) ───────────────────
-
+  // ─── Action bar: ẩn nút xóa với User ──────────────────────
   function renderActionBar() {
     var actionBar = document.getElementById("customActionBar");
-    
+
     if (!actionBar) {
       actionBar = document.createElement("div");
       actionBar.id = "customActionBar";
       actionBar.className = "action-bar";
-      
       var grid = document.getElementById("deviceGrid");
-      if (grid && grid.parentNode) {
-        grid.parentNode.insertBefore(actionBar, grid);
-      }
+      if (grid && grid.parentNode) grid.parentNode.insertBefore(actionBar, grid);
     }
 
     if (currentDevices.length === 0) {
@@ -203,10 +235,16 @@
       return;
     }
 
+    // User không có quyền chọn/xóa nhiều thiết bị
+    if (!isAdmin()) {
+      actionBar.style.display = "none";
+      return;
+    }
+
     actionBar.style.display = "flex";
     var isAllSelected = currentDevices.length > 0 && selectedDeviceIds.length === currentDevices.length;
 
-    actionBar.innerHTML = 
+    actionBar.innerHTML =
       '<div class="action-bar-left">' +
         '<button class="btn-action btn-select-all" id="btnSelectAll">' +
           (isAllSelected ? "🗹 Bỏ chọn tất cả" : "☐ Chọn tất cả") +
@@ -244,24 +282,19 @@
             currentDevices = currentDevices.filter(function (d) {
               return !deletedIds.includes(d.device_id);
             });
-            deletedIds.forEach(function (id) {
-              delete countdownStart[id];
-            });
-            selectedDeviceIds = []; 
-            
+            deletedIds.forEach(function (id) { delete countdownStart[id]; });
+            selectedDeviceIds = [];
             renderGrid(currentDevices);
             updateSummary(currentDevices);
             renderActionBar();
           })
           .catch(function (err) {
             alert("Có lỗi xảy ra trong quá trình xóa: " + err.message);
-            fetchDevices(); 
+            fetchDevices();
           });
       });
     }
   }
-
-  // ─── Risk color helpers (mirrors risk_label.h thresholds) ───
 
   function tempColorClass(t) {
     var v = parseFloat(t);
@@ -285,8 +318,7 @@
     return "val-normal";
   }
 
-  // ─── Render Card ───────────────────────────────────────────
-
+  // ─── Render card: chỉ Admin mới có thể select để xóa ──────
   function renderCard(device) {
     var state = getCountdownState(device.device_id);
     var cardOnline = (state === null || state.isOnline);
@@ -296,20 +328,25 @@
     var isStable = (state === null);
     var displayStyle = isStable ? "none" : "";
     var countdownDisplay = isStable ? "" : state.text;
-    var countdownPrefix = isStable ? "" : state.label;
+    var countdownPrefix  = isStable ? "" : state.label;
 
     var url = detailUrl(device);
     var isSelected = selectedDeviceIds.includes(device.device_id);
 
     var card = document.createElement("div");
-    card.className = "device-card" + (isSelected ? " selected" : "");
+    card.className = "device-card" + (isSelected && isAdmin() ? " selected" : "");
     card.setAttribute("role", "button");
     card.setAttribute("tabindex", "0");
     card.setAttribute("data-device-id", device.device_id);
-    card.title = "Chọn/Bỏ chọn " + device.device_id;
+    card.title = isAdmin() ? "Chọn/Bỏ chọn " + device.device_id : device.device_id;
+
+    // Checkbox indicator chỉ hiện với Admin
+    var checkboxHtml = isAdmin()
+      ? '<div class="select-checkbox-indicator">' + (isSelected ? '✓' : '') + '</div>'
+      : '';
 
     card.innerHTML =
-      '<div class="select-checkbox-indicator">' + (isSelected ? '✓' : '') + '</div>' +
+      checkboxHtml +
       '<div class="device-card-header">' +
         '<div>' +
           '<div class="device-name">' + displayName(device.device_id) + '</div>' +
@@ -318,7 +355,6 @@
           '<span class="status-dot"></span><span class="js-status-label">' + cardStatusLabel + '</span>' +
         '</span>' +
       '</div>' +
-
       '<div class="sensor-row">' +
         '<div class="sensor-item">' +
           '<span class="sensor-label">Nhiệt độ</span>' +
@@ -333,14 +369,12 @@
           '<span class="sensor-value js-val-soil ' + soilColorClass(device.soil_moisture) + '">' + fmtValue(device.soil_moisture) + '</span>' +
         '</div>' +
       '</div>' +
-
       '<div class="card-footer">' +
         '<span class="last-seen js-last-seen" style="display: ' + displayStyle + ';">' +
           '<span class="js-countdown-label">' + countdownPrefix + '</span>' +
           '<span class="js-countdown">' + countdownDisplay + '</span>' +
         '</span>' +
       '</div>' +
-
       '<div class="card-arrow" title="Xem chi tiết thiết bị này">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" ' +
              'stroke-linecap="round" stroke-linejoin="round">' +
@@ -348,9 +382,11 @@
         '</svg>' +
       '</div>';
 
-    card.addEventListener("click", function(e) {
+    // Click chọn card: chỉ Admin mới select được
+    card.addEventListener("click", function () {
+      if (!isAdmin()) return;
       if (isSelected) {
-        selectedDeviceIds = selectedDeviceIds.filter(function(id) { return id !== device.device_id; });
+        selectedDeviceIds = selectedDeviceIds.filter(function (id) { return id !== device.device_id; });
       } else {
         selectedDeviceIds.push(device.device_id);
       }
@@ -360,9 +396,9 @@
 
     var arrowBtn = card.querySelector(".card-arrow");
     if (arrowBtn) {
-      arrowBtn.addEventListener("click", function(e) {
-        e.stopPropagation(); 
-        window.location.href = url;
+      arrowBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openDeviceLoginModal(device.device_id, url);
       });
     }
 
@@ -402,22 +438,18 @@
     var total = devices.length;
     var online = devices.filter(isDeviceOnline).length;
     var offline = total - online;
-
     document.getElementById("sumTotal").textContent = total;
     document.getElementById("sumOnline").textContent = online;
     document.getElementById("sumOffline").textContent = offline;
   }
 
-  // ─── Countdown ticker ──────────────────────────────────────
-
   function tickCountdowns() {
     var cards = document.querySelectorAll(".device-card[data-device-id]");
-
     cards.forEach(function (card) {
       var id = card.getAttribute("data-device-id");
       var state = getCountdownState(id);
 
-      var lastSeenEl = card.querySelector(".js-last-seen");
+      var lastSeenEl  = card.querySelector(".js-last-seen");
       var countdownEl = card.querySelector(".js-countdown");
       var labelPrefixEl = card.querySelector(".js-countdown-label");
       var pillEl = card.querySelector(".js-status-pill");
@@ -425,10 +457,10 @@
 
       if (lastSeenEl && countdownEl && labelPrefixEl) {
         if (state === null) {
-          lastSeenEl.style.display = "none"; 
+          lastSeenEl.style.display = "none";
         } else {
-          lastSeenEl.style.display = "";     
-          countdownEl.textContent = state.text;
+          lastSeenEl.style.display = "";
+          countdownEl.textContent  = state.text;
           labelPrefixEl.textContent = state.label;
         }
       }
@@ -443,12 +475,9 @@
     updateSummary(currentDevices);
   }
 
-  // ─── Fetch ─────────────────────────────────────────────────
-
   function refreshLastRefreshText() {
     var el = document.getElementById("lastRefresh");
     var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
-
     if (latestTimestampUp) {
       var d = new Date(latestTimestampUp);
       el.textContent =
@@ -463,25 +492,26 @@
   function fetchDevices() {
     fetch("/admin/api/devices")
       .then(function (r) {
+        if (r.status === 401 || r.status === 403) {
+          window.location.href = '/login';
+          return;
+        }
         if (!r.ok) throw new Error("HTTP " + r.status);
         return r.json();
       })
       .then(function (data) {
+        if (!data) return;
         currentDevices = data || [];
 
-        var currentIds = currentDevices.map(function(d) { return d.device_id; });
-        selectedDeviceIds = selectedDeviceIds.filter(function(id) { return currentIds.includes(id); });
+        var currentIds = currentDevices.map(function (d) { return d.device_id; });
+        selectedDeviceIds = selectedDeviceIds.filter(function (id) { return currentIds.includes(id); });
 
-        currentDevices.forEach(function (device) {
-          updateStaleState(device);
-        });
+        currentDevices.forEach(function (device) { updateStaleState(device); });
 
         var newest = null;
         currentDevices.forEach(function (device) {
           var t = getTimestampMs(device);
-          if (t !== null && (!newest || t > newest)) {
-            newest = t;
-          }
+          if (t !== null && (!newest || t > newest)) newest = t;
         });
         latestTimestampUp = newest;
 
@@ -506,7 +536,6 @@
   }
 
   // ─── Boot ──────────────────────────────────────────────────
-
   document.getElementById("btnRefresh").addEventListener("click", fetchDevices);
 
   function tickClock() {
@@ -520,7 +549,153 @@
   setInterval(tickClock, 1000);
   setInterval(tickCountdowns, 1000);
 
-  fetchDevices();
-  setInterval(fetchDevices, 5000);
+  // Load user info trước, sau đó mới fetch devices
+  loadCurrentUser(function () {
+    fetchDevices();
+    setInterval(fetchDevices, 5000);
+  });
+
+  // ─── Device Login Modal (giữ nguyên logic gốc) ─────────────
+  var loginTargetUrl = "";
+  var loginTargetId  = "";
+
+  var loginModal         = document.getElementById("deviceLoginModal");
+  var loginModalClose    = document.getElementById("loginModalClose");
+  var loginDeviceIdEl    = document.getElementById("loginDeviceId");
+  var loginSection       = document.getElementById("loginSection");
+  var loginPasswordInput = document.getElementById("loginPasswordInput");
+  var loginSubmitBtn     = document.getElementById("loginSubmitBtn");
+  var loginMsg           = document.getElementById("loginMsg");
+  var setPasswordSection = document.getElementById("setPasswordSection");
+  var newPasswordInput   = document.getElementById("newPasswordInput");
+  var setPasswordBtn     = document.getElementById("setPasswordBtn");
+  var setPasswordMsg     = document.getElementById("setPasswordMsg");
+
+  function openDeviceLoginModal(deviceId, url) {
+    loginTargetId  = deviceId;
+    loginTargetUrl = url;
+
+    loginDeviceIdEl.textContent    = "Thiết bị: " + deviceId;
+    loginPasswordInput.value       = "";
+    newPasswordInput.value         = "";
+    loginMsg.textContent           = "";
+    loginMsg.className             = "login-msg";
+    setPasswordMsg.textContent     = "";
+    setPasswordMsg.className       = "login-msg";
+
+    // User không thể đặt mật khẩu thiết bị mới — ẩn section đó
+    loginSection.style.display       = "";
+    setPasswordSection.style.display = "none";
+
+    loginModal.style.display = "flex";
+    setTimeout(function () { loginPasswordInput.focus(); }, 80);
+  }
+
+  function closeDeviceLoginModal() {
+    loginModal.style.display = "none";
+  }
+
+  loginModalClose.addEventListener("click", closeDeviceLoginModal);
+
+  loginModal.addEventListener("click", function (e) {
+    if (e.target === loginModal) closeDeviceLoginModal();
+  });
+
+  loginPasswordInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") loginSubmitBtn.click();
+  });
+
+  loginSubmitBtn.addEventListener("click", function () {
+    var pass = loginPasswordInput.value.trim();
+    if (!pass) {
+      loginMsg.textContent = "Vui lòng nhập mật khẩu.";
+      loginMsg.className   = "login-msg error";
+      return;
+    }
+
+    loginSubmitBtn.disabled = true;
+    loginMsg.textContent    = "Đang xác thực...";
+    loginMsg.className      = "login-msg";
+
+    fetch("/admin/api/devices/" + encodeURIComponent(loginTargetId) + "/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pass })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        loginSubmitBtn.disabled = false;
+
+        // Nếu thiết bị chưa có mật khẩu: Admin được đặt, User chỉ được vào luôn
+        if (data.reason === "no_password") {
+          if (isAdmin()) {
+            loginSection.style.display       = "none";
+            setPasswordSection.style.display = "";
+            setTimeout(function () { newPasswordInput.focus(); }, 80);
+          } else {
+            // User: vào thẳng nếu thiết bị chưa có mật khẩu
+            loginMsg.textContent = "Thành công! Đang chuyển hướng...";
+            loginMsg.className   = "login-msg success";
+            setTimeout(function () { window.location.href = loginTargetUrl; }, 500);
+          }
+          return;
+        }
+
+        if (data.ok) {
+          loginMsg.textContent = "Thành công! Đang chuyển hướng...";
+          loginMsg.className   = "login-msg success";
+          setTimeout(function () { window.location.href = loginTargetUrl; }, 500);
+        } else {
+          loginMsg.textContent = "Mật khẩu không đúng.";
+          loginMsg.className   = "login-msg error";
+          loginPasswordInput.select();
+        }
+      })
+      .catch(function () {
+        loginSubmitBtn.disabled = false;
+        loginMsg.textContent    = "Lỗi kết nối, thử lại.";
+        loginMsg.className      = "login-msg error";
+      });
+  });
+
+  newPasswordInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") setPasswordBtn.click();
+  });
+
+  setPasswordBtn.addEventListener("click", function () {
+    if (!isAdmin()) return;   // double-check
+    var pass = newPasswordInput.value.trim();
+    if (!pass) {
+      setPasswordMsg.textContent = "Vui lòng nhập mật khẩu.";
+      setPasswordMsg.className   = "login-msg error";
+      return;
+    }
+
+    setPasswordBtn.disabled    = true;
+    setPasswordMsg.textContent = "Đang lưu...";
+    setPasswordMsg.className   = "login-msg";
+
+    fetch("/admin/api/devices/" + encodeURIComponent(loginTargetId) + "/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pass })
+    })
+      .then(function (r) {
+        setPasswordBtn.disabled = false;
+        if (r.ok) {
+          setPasswordMsg.textContent = "Đã lưu! Đang chuyển hướng...";
+          setPasswordMsg.className   = "login-msg success";
+          setTimeout(function () { window.location.href = loginTargetUrl; }, 500);
+        } else {
+          setPasswordMsg.textContent = "Lưu thất bại, thử lại.";
+          setPasswordMsg.className   = "login-msg error";
+        }
+      })
+      .catch(function () {
+        setPasswordBtn.disabled    = false;
+        setPasswordMsg.textContent = "Lỗi kết nối, thử lại.";
+        setPasswordMsg.className   = "login-msg error";
+      });
+  });
 
 })();
