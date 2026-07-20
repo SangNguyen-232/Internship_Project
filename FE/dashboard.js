@@ -2,8 +2,8 @@
   "use strict";
 
   var MAX_POINTS = 60;
-  var DEFAULT_LAT = 10.880018;
-  var DEFAULT_LNG = 106.806336;
+  var DEFAULT_LAT = 12.6951778;
+  var DEFAULT_LNG = 108.057041;
 
   var state = {
     pumpState: "OFF",
@@ -18,7 +18,6 @@
     humi: document.getElementById("statHumi"),
     soil: document.getElementById("statSoil"),
     time: document.getElementById("statTime"),
-    score: document.getElementById("statScore"),
     message: document.getElementById("statMessage"),
     coreiotDot: document.getElementById("coreiotDot"),
     pumpBadge: document.getElementById("pumpBadge"),
@@ -276,37 +275,6 @@
     }).addTo(map);
     marker = L.marker([state.lat, state.lng]).addTo(map);
 
-    locateUser();
-  }
-
-  function locateUser() {
-    if (!navigator.geolocation) {
-      console.warn("Geolocation is not supported by this browser; using default coordinates.");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      function (pos) {
-        hasLiveGeoFix = true;
-        updateMap(pos.coords.latitude, pos.coords.longitude);
-        if (map) map.setView([pos.coords.latitude, pos.coords.longitude], 16);
-      },
-      function (err) {
-        console.warn("Geolocation error (" + err.code + "): " + err.message);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-
-    geoWatchId = navigator.geolocation.watchPosition(
-      function (pos) {
-        hasLiveGeoFix = true;
-        updateMap(pos.coords.latitude, pos.coords.longitude);
-      },
-      function (err) {
-        console.warn("Geolocation watch error (" + err.code + "): " + err.message);
-      },
-      { enableHighAccuracy: true, maximumAge: 5000 }
-    );
   }
 
   function updateMap(lat, lng) {
@@ -329,7 +297,7 @@
   }
 
   function setScoreMessage(score, message) {
-    els.score.textContent = (typeof score === "number") ? score.toFixed(4) : "--";
+
     els.message.textContent = message || "--";
     var cls = "stat-sub";
     if (message === "Critical!") cls += " critical";
@@ -394,7 +362,16 @@
         setModeBadge(data.pump_controller);
       }
 
-      if (typeof data.ml_score === "number" || typeof data.ml_message === "string") {
+      if (typeof data.lcd_state === "number") {
+        var lcdLabelMap = { 1: "Normal", 2: "Warning", 3: "Critical" };
+        var lcdLabel = lcdLabelMap[data.lcd_state] || "--";
+        els.message.textContent = lcdLabel;
+        var lcdCls = "stat-sub";
+        if (data.lcd_state === 3) lcdCls += " critical";
+        else if (data.lcd_state === 2) lcdCls += " warning";
+        else lcdCls += " normal";
+        els.message.className = lcdCls;
+      } else if (typeof data.ml_score === "number" || typeof data.ml_message === "string") {
         setScoreMessage(data.ml_score, data.ml_message);
       }
 

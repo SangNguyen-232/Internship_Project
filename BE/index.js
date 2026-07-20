@@ -29,14 +29,16 @@ app.post('/sensor', async (req, res) => {
       MODE_state,
       Message,
       Score,
-      device_id          
+      device_id,
+      latency,
+      trigger_source
     } = req.body;
 
     await pool.query(
       `INSERT INTO sensor_logs
         (timestamp_real, timestamp_up, temperature, humidity,
-         soil_moisture, "PUMP_state", "MODE_state", "Message", "Score", device_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+         soil_moisture, "PUMP_state", "MODE_state", "Message", "Score", device_id, latency, trigger_source)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [
         timestamp_real === 'null' ? null : timestamp_real,
         timestamp_up,
@@ -47,7 +49,9 @@ app.post('/sensor', async (req, res) => {
         MODE_state,
         Message,
         Score,
-        device_id || 'test'
+        device_id || 'test',
+        latency !== undefined ? latency : null,
+        trigger_source || 'sensor'
       ]
     );
 
@@ -104,7 +108,7 @@ app.get('/admin/api/devices/:device_id/history', async (req, res) => {
       LIMIT $2
     `, [device_id, limit]);
 
-    res.json(result.rows.reverse()); 
+    res.json(result.rows.reverse());
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

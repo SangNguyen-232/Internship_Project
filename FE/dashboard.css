@@ -219,7 +219,7 @@ html, body {
 }
 
 .stat-sub {
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--green);
 }

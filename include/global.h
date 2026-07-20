@@ -22,14 +22,18 @@ struct SharedContext {
     int mlPredicted;
     float mlConfidence;
     time_t timestampReal;
+    suseconds_t timestampRealUs;
     char mlStatus[16];
     float mlRollAcc;
+    char dbTriggerSource[8];   // "sensor" | "pump"
 };
 
 extern float glob_temperature;
 extern float glob_humidity;
 extern float glob_soil;
-extern volatile unsigned long g_lastDBPostMs;
+extern volatile unsigned long g_lastDBPostMs_sensor;
+extern volatile unsigned long g_lastDBPostMs_pump;
+extern volatile bool g_pumpEventPending;
 
 extern String wifi_ssid;
 extern String wifi_pass;

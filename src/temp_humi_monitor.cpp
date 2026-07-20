@@ -2,6 +2,7 @@
 #include "risk_label.h"
 #include "serial_log.h"
 #include "task_webserver.h"
+#include <sys/time.h>
 
 // #define SOIL_PIN 6 
 #define SOIL_PIN 2 
@@ -54,10 +55,17 @@ void temp_humi_monitor(void *pvParameters) {
             ctx->soilMoisture = soil_moisture;
 
             if (WiFi.status() == WL_CONNECTED) {
-                ctx->timestampReal = time(nullptr);
+                struct timeval tv;
+                gettimeofday(&tv, nullptr);
+                ctx->timestampReal   = tv.tv_sec;
+                ctx->timestampRealUs = tv.tv_usec;
             } else {
-                ctx->timestampReal = 0;
+                ctx->timestampReal   = 0;
+                ctx->timestampRealUs = 0;
             }
+
+            strncpy(ctx->dbTriggerSource, "sensor", sizeof(ctx->dbTriggerSource) - 1);
+            ctx->dbTriggerSource[sizeof(ctx->dbTriggerSource) - 1] = '\0';
 
             const int newLedState = risk_led_state_from_temperature(temperature);
             if (newLedState != ctx->ledState) {
@@ -99,20 +107,21 @@ void temp_humi_monitor(void *pvParameters) {
         snprintf(buffer, sizeof(buffer), "SM:%02d%%   ", soil_moisture);
         lcd.print(buffer);
 
+        int capturedLcdState = 1;
         if (pvParameters != NULL) {
             SharedContext* ctx = (SharedContext*)pvParameters;
-    
             xSemaphoreTake(ctx->semLCDUpdate, 0); 
-            
+            capturedLcdState = ctx->lcdState;
             lcd.setCursor(8, 1);
             lcd.print("        "); 
             lcd.setCursor(8, 1);
-            lcd.print(statusText(ctx->lcdState));
+            lcd.print(statusText(capturedLcdState));
         }
-        
+
         String wsPayload = "{\"temperature\":" + String(temperature, 2) +
                             ",\"humidity\":" + String(humidity, 2) +
-                            ",\"soil_moisture\":" + String(soil_moisture) + "}";
+                            ",\"soil_moisture\":" + String(soil_moisture) +
+                            ",\"lcd_state\":" + String(capturedLcdState) + "}";
         Webserver_sendata(wsPayload);
 
         vTaskDelay(pdMS_TO_TICKS(5000)); 

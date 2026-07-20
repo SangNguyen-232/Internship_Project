@@ -59,6 +59,12 @@ void task_pump(void *pvParameters)
             Webserver_sendata(wsPayload);
 
             if (ctx != NULL) {
+                if (xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(200)) == pdTRUE) {
+                    strncpy(ctx->dbTriggerSource, "pump", sizeof(ctx->dbTriggerSource) - 1);
+                    ctx->dbTriggerSource[sizeof(ctx->dbTriggerSource) - 1] = '\0';
+                    xSemaphoreGive(ctx->mutexContext);
+                }
+                g_pumpEventPending = true;
                 xSemaphoreGive(ctx->semDBUpdate);
             }
         }

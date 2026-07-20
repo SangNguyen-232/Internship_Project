@@ -4,6 +4,7 @@
 #include "serial_log.h"
 #include "task_webserver.h"
 #include "pump.h"
+#include <sys/time.h>
 
 static String formatTimestamp(time_t t)
 {
@@ -15,7 +16,6 @@ static String formatTimestamp(time_t t)
     return String(buf);
 }
 
-// Derive rule-based status label from lcdState (1=Normal, 2=Warning, 3=Critical)
 static const char* ruleStatusLabel(int lcdState)
 {
     if (lcdState == 3) return "Critical";
@@ -31,11 +31,35 @@ void task_database(void *pvParameters)
     {
         xSemaphoreTake(ctx->semDBUpdate, portMAX_DELAY);
 
-        vTaskDelay(200 / portTICK_PERIOD_MS);
-
-        if (millis() - g_lastDBPostMs < 500)
+        char triggerSource[8] = "sensor";
+        if (ctx != NULL && xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(200)) == pdTRUE)
         {
-            continue;
+            strncpy(triggerSource, ctx->dbTriggerSource, sizeof(triggerSource) - 1);
+            triggerSource[sizeof(triggerSource) - 1] = '\0';
+            xSemaphoreGive(ctx->mutexContext);
+        }
+
+        // Debounce: sensor 200ms, pump 1000ms
+        {
+            unsigned long minGap      = 200UL;
+            unsigned long lastPostMs  = (strcmp(triggerSource, "pump") == 0)
+                                        ? g_lastDBPostMs_pump
+                                        : g_lastDBPostMs_sensor;
+            if (millis() - lastPostMs < minGap)
+            {
+                continue;
+            }
+
+            if (strcmp(triggerSource, "pump") == 0)
+            {
+                g_pumpEventPending = false;  
+            }
+
+            if (strcmp(triggerSource, "sensor") == 0 &&
+                (g_pumpEventPending || millis() - g_lastDBPostMs_pump < 200UL))
+            {
+                continue;
+            }
         }
 
         if (WiFi.status() != WL_CONNECTED)
@@ -56,30 +80,34 @@ void task_database(void *pvParameters)
         int soilMoisture = 0;
         int lcdState = 1;
         float mlRollAcc = 0.0f;
-        time_t timestampReal = 0;
-        time_t timestampUp = 0;
+        struct timeval tvReal = {0, 0};
+        struct timeval tvUp   = {0, 0};
         String pumpState;
         String modeState;
 
         if (ctx != NULL && xSemaphoreTake(ctx->mutexContext, pdMS_TO_TICKS(2000)) == pdTRUE)
         {
-            temperature  = ctx->temperature;
-            humidity     = ctx->humidity;
-            soilMoisture = ctx->soilMoisture;
-            lcdState     = ctx->lcdState;   // risk_final_label(t, h, soil)
-            mlRollAcc    = ctx->mlRollAcc;
+            temperature    = ctx->temperature;
+            humidity       = ctx->humidity;
+            soilMoisture   = ctx->soilMoisture;
+            lcdState       = ctx->lcdState;
+            mlRollAcc      = ctx->mlRollAcc;
+            tvReal.tv_sec  = ctx->timestampReal;
+            tvReal.tv_usec = ctx->timestampRealUs;
             xSemaphoreGive(ctx->mutexContext);
         }
 
         if (xSemaphoreTake(xMutexPumpControl, pdMS_TO_TICKS(2000)) == pdTRUE)
         {
             pumpState = global_pump_state;
-            modeState  = global_pump_mode;
+            modeState = global_pump_mode;
             xSemaphoreGive(xMutexPumpControl);
         }
 
-        timestampReal = time(nullptr);
-        timestampUp   = time(nullptr);
+        gettimeofday(&tvUp, nullptr);
+
+        int64_t latencyUs = (((int64_t)tvUp.tv_sec  * 1000000LL + tvUp.tv_usec)
+                        - ((int64_t)tvReal.tv_sec * 1000000LL + tvReal.tv_usec));
 
         String scoreStr;
         if (mlRollAcc >= 100.0f)
@@ -92,8 +120,8 @@ void task_database(void *pvParameters)
         }
 
         String payload = "{\n";
-        payload += "  \"timestamp_real\":\"" + formatTimestamp(timestampReal) + "\",\n";
-        payload += "  \"timestamp_up\":\"" + formatTimestamp(timestampUp) + "\",\n";
+        payload += "  \"timestamp_real\":\"" + formatTimestamp(tvReal.tv_sec) + "\",\n";
+        payload += "  \"timestamp_up\":\"" + formatTimestamp(tvUp.tv_sec) + "\",\n";
         payload += "  \"temperature\":\"" + String(temperature, 2) + "°C\",\n";
         payload += "  \"humidity\":\"" + String(humidity, 2) + "%\",\n";
         char soilBuf[8];
@@ -103,7 +131,9 @@ void task_database(void *pvParameters)
         payload += "  \"MODE_state\":\"" + modeState + "\",\n";
         payload += "  \"Message\":\"" + String(ruleStatusLabel(lcdState)) + "\",\n";
         payload += "  \"Score\":\"" + scoreStr + "%\",\n";
-        payload += "  \"device_id\":\"" + WiFi.localIP().toString() + "\"\n";
+        payload += "  \"device_id\":\"" + WiFi.localIP().toString() + "\",\n";
+        payload += "  \"latency\":" + String((long long)latencyUs) + ",\n";
+        payload += "  \"trigger_source\":\"" + String(triggerSource) + "\"\n";
         payload += "}";
 
         String dbUrl = "http://" + global_admin_ip + ":3000/sensor";
@@ -127,6 +157,9 @@ void task_database(void *pvParameters)
         serialLogUnlock();
 
         http.end();
-        g_lastDBPostMs = millis();
+        if (strcmp(triggerSource, "pump") == 0)
+            g_lastDBPostMs_pump   = millis();
+        else
+            g_lastDBPostMs_sensor = millis();
     }
 }
