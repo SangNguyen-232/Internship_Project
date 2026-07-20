@@ -227,6 +227,10 @@ html, body {
 .stat-sub.critical { color: var(--red); }
 .stat-sub.normal { color: var(--green); }
 
+.val-normal   { color: var(--green); }
+.val-warning  { color: var(--orange); }
+.val-critical { color: var(--red); }
+
 /* ---------- Cards (chart / map) ---------- */
 .charts-row {
   display: grid;

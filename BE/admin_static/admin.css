@@ -236,6 +236,9 @@ html, body {
 .val-temp { color: var(--orange); }
 .val-humi { color: var(--blue); }
 .val-soil { color: var(--green); }
+.val-normal   { color: var(--green); }
+.val-warning  { color: var(--orange); }
+.val-critical { color: var(--red); }
 
 /* ─── Card footer ─── */
 .card-footer {

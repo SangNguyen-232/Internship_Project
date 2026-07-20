@@ -9,6 +9,75 @@
   var selectedDeviceIds = [];
   var latestTimestampUp = null;
 
+  // ─── WebSocket per-device (realtime, mirrors LCD & device dashboard) ───
+  var deviceWsMap = {};
+
+  function connectDeviceWS(deviceId) {
+    if (deviceWsMap[deviceId]) {
+      var s = deviceWsMap[deviceId].readyState;
+      if (s === WebSocket.OPEN || s === WebSocket.CONNECTING) return;
+    }
+    var ws = new WebSocket("ws://" + deviceId + "/ws");
+    deviceWsMap[deviceId] = ws;
+
+    ws.onmessage = function (evt) {
+      var data;
+      try { data = JSON.parse(evt.data); } catch (e) { return; }
+      var card = document.querySelector(".device-card[data-device-id='" + deviceId + "']");
+      if (!card) return;
+
+      if (typeof data.temperature === "number") {
+        var elT = card.querySelector(".js-val-temp");
+        if (elT) {
+          elT.textContent = data.temperature.toFixed(2) + "\u00B0C";
+          elT.className = "sensor-value js-val-temp " + tempColorClass(data.temperature);
+        }
+      }
+      if (typeof data.humidity === "number") {
+        var elH = card.querySelector(".js-val-humi");
+        if (elH) {
+          elH.textContent = (data.humidity >= 99.95 ? "100" : data.humidity.toFixed(2)) + "%";
+          elH.className = "sensor-value js-val-humi " + humiColorClass(data.humidity);
+        }
+      }
+      if (typeof data.soil_moisture === "number") {
+        var elS = card.querySelector(".js-val-soil");
+        if (elS) {
+          var sv = Math.round(data.soil_moisture);
+          elS.textContent = (sv < 10 ? "0" + sv : "" + sv) + "%";
+          elS.className = "sensor-value js-val-soil " + soilColorClass(data.soil_moisture);
+        }
+      }
+
+      // Reset stale countdown khi nhận data trực tiếp từ thiết bị
+      var idx = currentDevices.findIndex(function (d) { return d.device_id === deviceId; });
+      if (idx !== -1) {
+        currentDevices[idx].timestamp_up = new Date().toISOString();
+        delete countdownStart[deviceId];
+      }
+    };
+
+    ws.onclose = function () {
+      delete deviceWsMap[deviceId];
+      setTimeout(function () {
+        if (currentDevices.some(function (d) { return d.device_id === deviceId; })) {
+          connectDeviceWS(deviceId);
+        }
+      }, 3000);
+    };
+    ws.onerror = function () { ws.close(); };
+  }
+
+  function syncDeviceWsSessions() {
+    currentDevices.forEach(function (d) { connectDeviceWS(d.device_id); });
+    Object.keys(deviceWsMap).forEach(function (id) {
+      if (!currentDevices.some(function (d) { return d.device_id === id; })) {
+        try { deviceWsMap[id].close(); } catch (e) {}
+        delete deviceWsMap[id];
+      }
+    });
+  }
+
   function detailUrl(device) {
     return "http://" + device.device_id + "/";
   }
@@ -192,6 +261,30 @@
     }
   }
 
+  // ─── Risk color helpers (mirrors risk_label.h thresholds) ───
+
+  function tempColorClass(t) {
+    var v = parseFloat(t);
+    if (isNaN(v)) return "val-temp";
+    if (v < 10.0 || v > 30.0) return "val-critical";
+    if (v < 15.0 || v > 25.0) return "val-warning";
+    return "val-normal";
+  }
+  function humiColorClass(h) {
+    var v = parseFloat(h);
+    if (isNaN(v)) return "val-humi";
+    if (v < 50.0 || v > 80.0) return "val-critical";
+    if (v < 60.0 || v > 70.0) return "val-warning";
+    return "val-normal";
+  }
+  function soilColorClass(s) {
+    var v = parseFloat(s);
+    if (isNaN(v)) return "val-soil";
+    if (v < 25.0 || v > 45.0) return "val-critical";
+    if (v < 30.0 || v > 40.0) return "val-warning";
+    return "val-normal";
+  }
+
   // ─── Render Card ───────────────────────────────────────────
 
   function renderCard(device) {
@@ -229,15 +322,15 @@
       '<div class="sensor-row">' +
         '<div class="sensor-item">' +
           '<span class="sensor-label">Nhiệt độ</span>' +
-          '<span class="sensor-value val-temp">' + fmtValue(device.temperature) + '</span>' +
+          '<span class="sensor-value js-val-temp ' + tempColorClass(device.temperature) + '">' + fmtValue(device.temperature) + '</span>' +
         '</div>' +
         '<div class="sensor-item">' +
           '<span class="sensor-label">Độ ẩm KK</span>' +
-          '<span class="sensor-value val-humi">' + fmtValue(device.humidity) + '</span>' +
+          '<span class="sensor-value js-val-humi ' + humiColorClass(device.humidity) + '">' + fmtValue(device.humidity) + '</span>' +
         '</div>' +
         '<div class="sensor-item">' +
           '<span class="sensor-label">Độ ẩm đất</span>' +
-          '<span class="sensor-value val-soil">' + fmtValue(device.soil_moisture) + '</span>' +
+          '<span class="sensor-value js-val-soil ' + soilColorClass(device.soil_moisture) + '">' + fmtValue(device.soil_moisture) + '</span>' +
         '</div>' +
       '</div>' +
 
@@ -396,6 +489,7 @@
         updateSummary(currentDevices);
         renderActionBar();
         refreshLastRefreshText();
+        syncDeviceWsSessions();
       })
       .catch(function (err) {
         document.getElementById("deviceGrid").innerHTML =

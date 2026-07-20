@@ -26,6 +26,23 @@
     modeToggleBtn: document.getElementById("modeToggleBtn"),
   };
 
+  // ---------- Risk color helpers (mirrors risk_label.h thresholds) ----------
+  function tempColorClass(t) {
+    if (t < 10.0 || t > 30.0) return "val-critical";
+    if (t < 15.0 || t > 25.0) return "val-warning";
+    return "val-normal";
+  }
+  function humiColorClass(h) {
+    if (h < 50.0 || h > 80.0) return "val-critical";
+    if (h < 60.0 || h > 70.0) return "val-warning";
+    return "val-normal";
+  }
+  function soilColorClass(s) {
+    if (s < 25.0 || s > 45.0) return "val-critical";
+    if (s < 30.0 || s > 40.0) return "val-warning";
+    return "val-normal";
+  }
+
   // ---------- Clock (client-side, always available even without NTP) ----------
   function tickClock() {
     var now = new Date();
@@ -326,18 +343,23 @@
       var haveHumi = typeof data.humidity === "number";
       var haveSoil = typeof data.soil_moisture === "number";
 
-      if (haveTemp) els.temp.textContent = data.temperature.toFixed(1) + "\u00B0C";
+      if (haveTemp) {
+        els.temp.textContent = data.temperature.toFixed(1) + "\u00B0C";
+        els.temp.className = "stat-value " + tempColorClass(data.temperature);
+      }
 
       if (haveHumi) {
         els.humi.textContent = (data.humidity >= 99.95)
           ? "100%"
           : data.humidity.toFixed(1) + "%";
+        els.humi.className = "stat-value " + humiColorClass(data.humidity);
       }
 
       if (haveSoil) {
         var soilVal = Math.round(data.soil_moisture);
         var soilStr = (soilVal < 10 ? "0" + soilVal : "" + soilVal);
         els.soil.textContent = soilStr + "%";
+        els.soil.className = "stat-value " + soilColorClass(data.soil_moisture);
       }
 
       if (haveTemp || haveHumi || haveSoil) {
