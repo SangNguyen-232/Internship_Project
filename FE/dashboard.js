@@ -276,8 +276,6 @@
   // ---------- Map ----------
   var map = null;
   var marker = null;
-  var geoWatchId = null;
-  var hasLiveGeoFix = false;
 
   function initMap() {
     if (typeof L === 'undefined') {
@@ -291,7 +289,6 @@
       attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
     marker = L.marker([state.lat, state.lng]).addTo(map);
-
   }
 
   function updateMap(lat, lng) {
@@ -314,7 +311,6 @@
   }
 
   function setScoreMessage(score, message) {
-
     els.message.textContent = message || "--";
     var cls = "stat-sub";
     if (message === "Critical!") cls += " critical";
@@ -592,5 +588,27 @@
     connectWS();
     pollStatus();
     setInterval(pollStatus, 5000);
+
+    // Session timeout: tối đa 5 phút, sau đó về admin
+    var params = new URLSearchParams(window.location.search);
+    var sessionStartStr = params.get("session_start") || "";
+    var sessionStart = 0;
+    if (sessionStartStr && sessionStartStr.indexOf(":") !== -1) {
+        var parts = sessionStartStr.split(":");
+        var d = new Date();
+        d.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), parseInt(parts[2], 10), 0);
+        sessionStart = d.getTime();
+    }
+    if (sessionStart > 0) {
+        var elapsed = Date.now() - sessionStart;
+      var remaining = 5 * 60 * 1000 - elapsed;
+      if (remaining <= 0) {
+          if (document.referrer) { window.location.href = document.referrer; } else { window.history.back(); }
+      } else {
+          setTimeout(function () {
+              if (document.referrer) { window.location.href = document.referrer; } else { window.history.back(); }
+          }, remaining);
+      }
+    }
   });
 })();

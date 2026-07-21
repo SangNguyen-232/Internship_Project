@@ -641,7 +641,10 @@
             // User: vào thẳng nếu thiết bị chưa có mật khẩu
             loginMsg.textContent = "Thành công! Đang chuyển hướng...";
             loginMsg.className   = "login-msg success";
-            setTimeout(function () { window.location.href = loginTargetUrl; }, 500);
+            setTimeout(function () { 
+              var _now = new Date();
+              var _pad = function(n) { return n < 10 ? "0" + n : "" + n; };
+              window.location.href = loginTargetUrl + "?session_start=" + _pad(_now.getHours()) + ":" + _pad(_now.getMinutes()) + ":" + _pad(_now.getSeconds()); }, 500);
           }
           return;
         }
@@ -649,7 +652,10 @@
         if (data.ok) {
           loginMsg.textContent = "Thành công! Đang chuyển hướng...";
           loginMsg.className   = "login-msg success";
-          setTimeout(function () { window.location.href = loginTargetUrl; }, 500);
+          setTimeout(function () { 
+            var _now = new Date();
+            var _pad = function(n) { return n < 10 ? "0" + n : "" + n; };
+            window.location.href = loginTargetUrl + "?session_start=" + _pad(_now.getHours()) + ":" + _pad(_now.getMinutes()) + ":" + _pad(_now.getSeconds()); }, 500);
         } else {
           loginMsg.textContent = "Mật khẩu không đúng.";
           loginMsg.className   = "login-msg error";
