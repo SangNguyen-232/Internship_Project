@@ -7,5 +7,6 @@
 
 extern bool Wifi_reconnect();
 extern void startAP();
+extern void Wifi_switch_to(const String& ssid, const String& pass);
 
 #endif

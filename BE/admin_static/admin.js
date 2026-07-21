@@ -572,6 +572,11 @@
   var setPasswordMsg     = document.getElementById("setPasswordMsg");
 
   function openDeviceLoginModal(deviceId, url) {
+    if (isAdmin()) {
+      window.location.href = url;
+      return;
+    }
+
     loginTargetId  = deviceId;
     loginTargetUrl = url;
 

@@ -49,6 +49,10 @@ void setup()
 
 void loop()
 {
+  if (g_wifiSwitchFlag) {
+    g_wifiSwitchFlag = false;
+    Wifi_switch_to(g_wifiSwitchSSID, g_wifiSwitchPass);
+  }
   if (check_info_File(1))
   {
     if (!Wifi_reconnect())

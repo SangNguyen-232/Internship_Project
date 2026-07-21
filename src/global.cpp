@@ -12,3 +12,7 @@ String wifi_pass = "";
 
 boolean isWifiConnected = false;
 SemaphoreHandle_t xBinarySemaphoreInternet = xSemaphoreCreateBinary();
+
+volatile bool g_wifiSwitchFlag = false;
+String g_wifiSwitchSSID = "";
+String g_wifiSwitchPass = "";

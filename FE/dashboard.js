@@ -473,6 +473,62 @@
       });
   });
 
+  // ---------- WiFi list management ----------
+  function escapeAttr(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function switchWifiNetwork(ssid, pass, btn) {
+    if (btn) btn.disabled = true;
+    fetch('/api/wifi-switch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ssid: ssid, pass: pass })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (btn) btn.disabled = false;
+        if (data.ok && wifiSettingsMsg) {
+          wifiSettingsMsg.textContent = 'Đang chuyển sang "' + ssid + '"...';
+        }
+      })
+      .catch(function () {
+        if (btn) btn.disabled = false;
+        if (wifiSettingsMsg) wifiSettingsMsg.textContent = 'Lỗi kết nối.';
+      });
+  }
+
+  function loadAndRenderWifiList() {
+    var container = document.getElementById('wifiListSection');
+    if (!container) return;
+    container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">Đang tải...</div>';
+    fetch('/api/wifi-list')
+      .then(function (r) { return r.json(); })
+      .then(function (list) {
+        if (!Array.isArray(list) || list.length === 0) {
+          container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding-bottom:10px;">Chưa có mạng đã lưu.</div>';
+          return;
+        }
+        var html = '<div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">Mạng WiFi đã lưu</div>';
+        list.forEach(function (item) {
+          html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">'
+            + '<span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">' + escapeAttr(item.ssid) + '</span>'
+            + '<button class="btn-toggle" style="padding:4px 12px;font-size:12px;flex-shrink:0;"'
+            + ' data-ssid="' + escapeAttr(item.ssid) + '" data-pass="' + escapeAttr(item.pass || '') + '">Chuyển</button>'
+            + '</div>';
+        });
+        container.innerHTML = html;
+        container.querySelectorAll('button[data-ssid]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            switchWifiNetwork(btn.getAttribute('data-ssid'), btn.getAttribute('data-pass'), btn);
+          });
+        });
+      })
+      .catch(function () {
+        container.innerHTML = '<div style="font-size:12px;color:var(--red);">Không tải được danh sách.</div>';
+      });
+  }
+
   // ---------- Settings modal (WiFi config) ----------
   var settingsNavBtn = document.getElementById("settingsNavBtn");
   var settingsModal = document.getElementById("settingsModal");
@@ -482,7 +538,17 @@
 
   function openSettingsModal(e) {
     if (e) e.preventDefault();
-    if (settingsModal) settingsModal.style.display = "flex";
+    if (!settingsModal) return;
+    var modalBox = settingsModal.querySelector('.modal-box');
+    if (modalBox && !document.getElementById('wifiListSection')) {
+      var section = document.createElement('div');
+      section.id = 'wifiListSection';
+      section.style.marginBottom = '14px';
+      var form = modalBox.querySelector('#wifiSettingsForm');
+      modalBox.insertBefore(section, form || null);
+    }
+    settingsModal.style.display = "flex";
+    loadAndRenderWifiList();
   }
 
   function closeSettingsModal() {

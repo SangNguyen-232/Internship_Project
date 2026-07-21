@@ -154,6 +154,47 @@ void connnectWSV()
         request->send(200, "text/plain", current_mode);
     });
 
+    server.on("/api/wifi-list", HTTP_GET, [](AsyncWebServerRequest *request) {
+        captureAdminIp(request);
+        DynamicJsonDocument doc(1024);
+        Load_wifi_list(doc);
+        String out;
+        if (doc.is<JsonArray>()) {
+            serializeJson(doc, out);
+        } else {
+            out = "[]";
+        }
+        request->send(200, "application/json", out);
+    });
+
+    server.on("/api/wifi-switch", HTTP_POST,
+        [](AsyncWebServerRequest *request) {},
+        nullptr,
+        [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            static String bodyBuf;
+            if (index == 0) bodyBuf = "";
+            for (size_t i = 0; i < len; i++) bodyBuf += (char)data[i];
+            if (index + len < total) return;
+
+            StaticJsonDocument<256> doc;
+            if (deserializeJson(doc, bodyBuf) != DeserializationError::Ok) {
+                request->send(400, "application/json", "{\"error\":\"invalid json\"}");
+                return;
+            }
+            String ssid = doc["ssid"] | String("");
+            String pass = doc["pass"] | String("");
+            if (ssid.isEmpty()) {
+                request->send(400, "application/json", "{\"error\":\"ssid required\"}");
+                return;
+            }
+            g_wifiSwitchSSID = ssid;
+            g_wifiSwitchPass = pass;
+            g_wifiSwitchFlag = true;
+            captureAdminIp(request);
+            request->send(200, "application/json", "{\"ok\":true}");
+        }
+    );
+
     server.begin();
     ElegantOTA.begin(&server);
     webserver_isrunning = true;

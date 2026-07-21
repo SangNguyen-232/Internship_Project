@@ -41,4 +41,8 @@ extern String wifi_pass;
 extern boolean isWifiConnected;
 extern SemaphoreHandle_t xBinarySemaphoreInternet;
 
+extern volatile bool g_wifiSwitchFlag;
+extern String g_wifiSwitchSSID;
+extern String g_wifiSwitchPass;
+
 #endif

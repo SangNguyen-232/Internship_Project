@@ -53,3 +53,11 @@ bool Wifi_reconnect()
     startSTA();
     return false;
 }
+
+void Wifi_switch_to(const String& ssid, const String& pass) {
+    Save_wifi_to_list(ssid, pass);
+    Save_info_NoRestart(ssid, pass);
+    WiFi.disconnect(true);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    startSTA();
+}

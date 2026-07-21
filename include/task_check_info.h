@@ -12,4 +12,9 @@ void Delete_info_File();
 void Save_info_File(String ssid, String pass);
 void Save_sta_ip_File(String ip);
 
+void Load_wifi_list(DynamicJsonDocument &doc);
+void Save_wifi_to_list(String ssid, String pass);
+bool Load_first_wifi_from_list(String &ssid, String &pass);
+void Save_info_NoRestart(String ssid, String pass);
+
 #endif

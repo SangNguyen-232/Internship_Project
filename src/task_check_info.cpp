@@ -98,3 +98,72 @@ void Save_sta_ip_File(String ip)
     configFile.close();
   }
 }
+
+void Load_wifi_list(DynamicJsonDocument &doc) {
+    if (!LittleFS.exists("/wifi_list.json")) return;
+    File file = LittleFS.open("/wifi_list.json", "r");
+    if (!file) return;
+    deserializeJson(doc, file);
+    file.close();
+}
+
+void Save_wifi_to_list(String ssid, String pass) {
+    DynamicJsonDocument doc(1024);
+    Load_wifi_list(doc);
+
+    if (!doc.is<JsonArray>()) {
+        doc.clear();
+        doc.to<JsonArray>();
+    }
+    JsonArray arr = doc.as<JsonArray>();
+
+    // Nếu SSID đã tồn tại thì chỉ cập nhật pass, giữ nguyên vị trí
+    for (JsonObject item : arr) {
+        if (item["ssid"].as<String>() == ssid) {
+            item["pass"] = pass;
+            File f = LittleFS.open("/wifi_list.json", "w");
+            if (f) { serializeJson(doc, f); f.close(); }
+            return;
+        }
+    }
+
+    // SSID mới: prepend vào đầu mảng (mới nhất ở trên, cũ nhất ở dưới)
+    DynamicJsonDocument newDoc(1024);
+    JsonArray newArr = newDoc.to<JsonArray>();
+
+    JsonObject newEntry = newArr.createNestedObject();
+    newEntry["ssid"] = ssid;
+    newEntry["pass"] = pass;
+
+    for (JsonObject item : arr) {
+        JsonObject copy = newArr.createNestedObject();
+        copy["ssid"] = item["ssid"].as<String>();
+        copy["pass"] = item["pass"].as<String>();
+    }
+
+    File f = LittleFS.open("/wifi_list.json", "w");
+    if (f) { serializeJson(newDoc, f); f.close(); }
+}
+
+bool Load_first_wifi_from_list(String &ssid, String &pass) {
+    DynamicJsonDocument doc(1024);
+    Load_wifi_list(doc);
+    if (!doc.is<JsonArray>() || doc.as<JsonArray>().size() == 0) return false;
+    JsonObject first = doc.as<JsonArray>()[0];
+    ssid = first["ssid"].as<String>();
+    pass = first["pass"].as<String>();
+    return !ssid.isEmpty();
+}
+
+void Save_info_NoRestart(String ssid, String pass) {
+    wifi_ssid = ssid;
+    wifi_pass = pass;
+    DynamicJsonDocument doc(512);
+    doc["WIFI_SSID"] = ssid;
+    doc["WIFI_PASS"] = pass;
+    File configFile = LittleFS.open("/info.dat", "w");
+    if (configFile) {
+        serializeJson(doc, configFile);
+        configFile.close();
+    }
+}
