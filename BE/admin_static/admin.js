@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  // ─── Auth state (được load từ /api/me khi khởi động) ───────
+  // ─── Auth state (Loaded from /api/me during application startup) ───────
   var currentUser = null;   // { username, role }
 
   var STALE_DIFF_MS = 10 * 1000;
@@ -14,7 +14,7 @@
 
   var deviceWsMap = {};
 
-  // ─── Load user info, redirect nếu chưa login ───────────────
+  // ─── Load user information and redirect if the user is not logged in ───────────────
   function loadCurrentUser(cb) {
     fetch('/api/me')
       .then(function (r) { return r.json(); })
@@ -32,7 +32,7 @@
       });
   }
 
-  // ─── Render thanh user + nút logout trên header ────────────
+  // ─── Render the user bar and logout button in the header ────────────
   function renderUserBar() {
     var headerRight = document.querySelector('.header-right');
     if (!headerRight) return;
@@ -74,14 +74,10 @@
       .catch(function () { window.location.href = '/login'; });
   }
 
-  // ─── Kiểm tra quyền Admin ──────────────────────────────────
+  // ─── Check Admin Privileges ──────────────────────────────────
   function isAdmin() {
     return currentUser && currentUser.role === 'admin';
   }
-
-  // ═══════════════════════════════════════════════════════════
-  // ── Toàn bộ logic gốc từ đây trở xuống — KHÔNG THAY ĐỔI ──
-  // ═══════════════════════════════════════════════════════════
 
   function connectDeviceWS(deviceId) {
     if (deviceWsMap[deviceId]) {
@@ -235,7 +231,7 @@
       return;
     }
 
-    // User không có quyền chọn/xóa nhiều thiết bị
+    // Users are not allowed to select or delete multiple devices
     if (!isAdmin()) {
       actionBar.style.display = "none";
       return;
@@ -318,7 +314,7 @@
     return "val-normal";
   }
 
-  // ─── Render card: chỉ Admin mới có thể select để xóa ──────
+  // ─── Render device cards: only administrators can select devices for deletion ──────
   function renderCard(device) {
     var state = getCountdownState(device.device_id);
     var cardOnline = (state === null || state.isOnline);
@@ -340,7 +336,7 @@
     card.setAttribute("data-device-id", device.device_id);
     card.title = isAdmin() ? "Chọn/Bỏ chọn " + device.device_id : device.device_id;
 
-    // Checkbox indicator chỉ hiện với Admin
+    // Display the checkbox indicator only for administrators
     var checkboxHtml = isAdmin()
       ? '<div class="select-checkbox-indicator">' + (isSelected ? '✓' : '') + '</div>'
       : '';
@@ -382,7 +378,7 @@
         '</svg>' +
       '</div>';
 
-    // Click chọn card: chỉ Admin mới select được
+    // Handle card selection: only administrators can select cards
     card.addEventListener("click", function () {
       if (!isAdmin()) return;
       if (isSelected) {
@@ -549,13 +545,13 @@
   setInterval(tickClock, 1000);
   setInterval(tickCountdowns, 1000);
 
-  // Load user info trước, sau đó mới fetch devices
+  // Load user information first, then fetch the devices
   loadCurrentUser(function () {
     fetchDevices();
     setInterval(fetchDevices, 5000);
   });
 
-  // ─── Device Login Modal (giữ nguyên logic gốc) ─────────────
+  // ─── Device Login Modal ─────────────
   var loginTargetUrl = "";
   var loginTargetId  = "";
 
@@ -588,7 +584,7 @@
     setPasswordMsg.textContent     = "";
     setPasswordMsg.className       = "login-msg";
 
-    // User không thể đặt mật khẩu thiết bị mới — ẩn section đó
+    // Users cannot set a new device password—hide that section
     loginSection.style.display       = "";
     setPasswordSection.style.display = "none";
 
@@ -631,14 +627,14 @@
       .then(function (data) {
         loginSubmitBtn.disabled = false;
 
-        // Nếu thiết bị chưa có mật khẩu: Admin được đặt, User chỉ được vào luôn
+        // If the device has no password: administrators can set one, while users can access the device directly
         if (data.reason === "no_password") {
           if (isAdmin()) {
             loginSection.style.display       = "none";
             setPasswordSection.style.display = "";
             setTimeout(function () { newPasswordInput.focus(); }, 80);
           } else {
-            // User: vào thẳng nếu thiết bị chưa có mật khẩu
+            // User: Proceed directly if the device has no password
             loginMsg.textContent = "Thành công! Đang chuyển hướng...";
             loginMsg.className   = "login-msg success";
             setTimeout(function () { 

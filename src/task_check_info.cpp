@@ -117,7 +117,7 @@ void Save_wifi_to_list(String ssid, String pass) {
     }
     JsonArray arr = doc.as<JsonArray>();
 
-    // Nếu SSID đã tồn tại thì chỉ cập nhật pass, giữ nguyên vị trí
+    // If the SSID already exists, update only the password and keep its current position
     for (JsonObject item : arr) {
         if (item["ssid"].as<String>() == ssid) {
             item["pass"] = pass;
@@ -127,7 +127,7 @@ void Save_wifi_to_list(String ssid, String pass) {
         }
     }
 
-    // SSID mới: prepend vào đầu mảng (mới nhất ở trên, cũ nhất ở dưới)
+    // For a new SSID, prepend it to the beginning of the list (newest at the top, oldest at the bottom)
     DynamicJsonDocument newDoc(1024);
     JsonArray newArr = newDoc.to<JsonArray>();
 

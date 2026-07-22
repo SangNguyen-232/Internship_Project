@@ -40,7 +40,7 @@ void handleWebSocketMessage(String message)
         String msg = "{\"status\":\"ok\",\"page\":\"setting_saved\"}";
         ws.textAll(msg);
 
-        Save_wifi_to_list(WIFI_SSID, WIFI_PASS);  // ← thêm dòng này
+        Save_wifi_to_list(WIFI_SSID, WIFI_PASS);  
         Save_info_File(WIFI_SSID, WIFI_PASS);
     }
 }

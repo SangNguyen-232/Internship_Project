@@ -134,6 +134,35 @@
 
   .field input::placeholder { color: var(--muted); }
 
+  /* ── Password show/hide wrapper ── */
+  .pwd-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .pwd-wrap input {
+    width: 100%;
+    padding-right: 38px;
+  }
+
+  .btn-eye {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    line-height: 1;
+    transition: color 0.15s;
+  }
+
+  .btn-eye:hover { color: var(--text); }
+  .btn-eye svg { width: 16px; height: 16px; }
+
   /* ── Button ── */
   .btn-login {
     width: 100%;
@@ -185,6 +214,41 @@
 
   .login-err.show { display: block; }
 
+  /* ── Success message ── */
+  .login-ok {
+    display: none;
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: rgba(46,204,113,0.12);
+    border: 1px solid rgba(46,204,113,0.25);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--green);
+  }
+
+  .login-ok.show { display: block; }
+
+  /* ── Switch link ── */
+  .switch-link {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .switch-link button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+  }
+
+  .switch-link button:hover { color: var(--accent-h); }
+
   /* ── Footer note ── */
   .login-note {
     text-align: center;
@@ -204,8 +268,8 @@
   </div>
 
   <div class="login-card">
-    <div class="login-title">Đăng nhập hệ thống</div>
-    <div class="login-sub">Nhập tài khoản được cấp để tiếp tục</div>
+    <div class="login-title" id="cardTitle">Đăng nhập hệ thống</div>
+    <div class="login-sub" id="cardSub">Nhập tài khoản được cấp để tiếp tục</div>
 
     <div class="field">
       <label for="username">Tên đăng nhập</label>
@@ -214,15 +278,36 @@
 
     <div class="field">
       <label for="password">Mật khẩu</label>
-      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+      <div class="pwd-wrap">
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+        <button type="button" class="btn-eye" data-target="password" aria-label="Hiện/ẩn mật khẩu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
     </div>
 
-    <button class="btn-login" id="btnLogin">
+    <div class="field" id="fieldConfirm" style="display:none;">
+      <label for="confirmPassword">Xác nhận mật khẩu</label>
+      <div class="pwd-wrap">
+        <input type="password" id="confirmPassword" placeholder="••••••••" autocomplete="new-password" />
+        <button type="button" class="btn-eye" data-target="confirmPassword" aria-label="Hiện/ẩn mật khẩu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn-login" id="btnSubmit">
       <span class="btn-spinner"></span>
       <span class="btn-text">Đăng nhập</span>
     </button>
 
     <div class="login-err" id="loginErr"></div>
+    <div class="login-ok" id="loginOk"></div>
+  </div>
+
+  <div class="switch-link">
+    <span id="switchText">Chưa có tài khoản?</span>
+    <button id="btnSwitch">Đăng ký</button>
   </div>
 
   <div class="login-note">ESP32 IoT Fleet Management &mdash; Chỉ dành cho người dùng được cấp quyền</div>
@@ -231,27 +316,69 @@
 
 <script>
 (function () {
-  var usernameEl = document.getElementById('username');
-  var passwordEl = document.getElementById('password');
-  var btnLogin   = document.getElementById('btnLogin');
-  var errEl      = document.getElementById('loginErr');
+  var usernameEl      = document.getElementById('username');
+  var passwordEl      = document.getElementById('password');
+  var confirmEl       = document.getElementById('confirmPassword');
+  var fieldConfirm    = document.getElementById('fieldConfirm');
+  var btnSubmit       = document.getElementById('btnSubmit');
+  var btnSwitch       = document.getElementById('btnSwitch');
+  var errEl           = document.getElementById('loginErr');
+  var okEl            = document.getElementById('loginOk');
+  var cardTitle       = document.getElementById('cardTitle');
+  var cardSub         = document.getElementById('cardSub');
+  var switchText      = document.getElementById('switchText');
+
+  var isRegisterMode = false;
 
   function setError(msg) {
     errEl.textContent = msg;
     errEl.classList.add('show');
+    okEl.classList.remove('show');
   }
 
-  function clearError() {
+  function setOk(msg) {
+    okEl.textContent = msg;
+    okEl.classList.add('show');
     errEl.classList.remove('show');
   }
 
+  function clearMessages() {
+    errEl.classList.remove('show');
+    okEl.classList.remove('show');
+  }
+
   function setLoading(on) {
-    btnLogin.disabled = on;
-    btnLogin.classList.toggle('loading', on);
+    btnSubmit.disabled = on;
+    btnSubmit.classList.toggle('loading', on);
+  }
+
+  function switchMode() {
+    isRegisterMode = !isRegisterMode;
+    clearMessages();
+    usernameEl.value = '';
+    passwordEl.value = '';
+    confirmEl.value  = '';
+
+    if (isRegisterMode) {
+      cardTitle.textContent       = 'Đăng ký tài khoản';
+      cardSub.textContent         = 'Tạo tài khoản mới để truy cập hệ thống';
+      btnSubmit.querySelector('.btn-text').textContent = 'Đăng ký';
+      fieldConfirm.style.display  = '';
+      switchText.textContent      = 'Đã có tài khoản?';
+      btnSwitch.textContent       = 'Đăng nhập';
+    } else {
+      cardTitle.textContent       = 'Đăng nhập hệ thống';
+      cardSub.textContent         = 'Nhập tài khoản được cấp để tiếp tục';
+      btnSubmit.querySelector('.btn-text').textContent = 'Đăng nhập';
+      fieldConfirm.style.display  = 'none';
+      switchText.textContent      = 'Chưa có tài khoản?';
+      btnSwitch.textContent       = 'Đăng ký';
+    }
+    usernameEl.focus();
   }
 
   function doLogin() {
-    clearError();
+    clearMessages();
     var username = usernameEl.value.trim();
     var password = passwordEl.value;
 
@@ -284,11 +411,71 @@
       });
   }
 
-  btnLogin.addEventListener('click', doLogin);
+  function doRegister() {
+    clearMessages();
+    var username = usernameEl.value.trim();
+    var password = passwordEl.value;
+    var confirm  = confirmEl.value;
 
-  [usernameEl, passwordEl].forEach(function (el) {
+    if (!username || !password || !confirm) {
+      setError('Vui lòng nhập đầy đủ thông tin.');
+      return;
+    }
+    if (password !== confirm) {
+      setError('Mật khẩu xác nhận không khớp.');
+      confirmEl.value = '';
+      confirmEl.focus();
+      return;
+    }
+
+    setLoading(true);
+
+    fetch('/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username, password: password })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        setLoading(false);
+        if (data.ok) {
+          setOk('Đăng ký thành công! Bạn có thể đăng nhập ngay.');
+          usernameEl.value = '';
+          passwordEl.value = '';
+          confirmEl.value  = '';
+          setTimeout(switchMode, 1500);
+        } else {
+          setError(data.error || 'Đăng ký thất bại.');
+        }
+      })
+      .catch(function () {
+        setLoading(false);
+        setError('Không kết nối được server. Thử lại sau.');
+      });
+  }
+
+  btnSubmit.addEventListener('click', function () {
+    if (isRegisterMode) doRegister(); else doLogin();
+  });
+
+  btnSwitch.addEventListener('click', switchMode);
+
+  [usernameEl, passwordEl, confirmEl].forEach(function (el) {
     el.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') doLogin();
+      if (e.key === 'Enter') btnSubmit.click();
+    });
+  });
+
+  var EYE_SHOW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var EYE_HIDE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+  document.querySelectorAll('.btn-eye').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var input = document.getElementById(btn.getAttribute('data-target'));
+      if (!input) return;
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.innerHTML = show ? EYE_HIDE : EYE_SHOW;
     });
   });
 })();

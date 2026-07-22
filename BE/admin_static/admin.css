@@ -521,6 +521,35 @@ html, body {
   border-color: var(--accent);
 }
 
+/* ── Password show/hide wrapper ── */
+.pwd-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pwd-wrap input {
+  width: 100%;
+  padding-right: 36px;
+}
+
+.btn-eye {
+  position: absolute;
+  right: 9px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.btn-eye:hover { color: var(--text); }
+.btn-eye svg { width: 15px; height: 15px; }
+
 .login-submit-btn {
   width: 100%;
   background: var(--accent);

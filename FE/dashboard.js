@@ -589,7 +589,7 @@
     pollStatus();
     setInterval(pollStatus, 5000);
 
-    // Session timeout: tối đa 5 phút, sau đó về admin
+    // Session timeout: Maximum 5 minutes, then redirect to the Admin Dashboard
     var params = new URLSearchParams(window.location.search);
     var sessionStartStr = params.get("session_start") || "";
     var sessionStart = 0;

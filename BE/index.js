@@ -14,7 +14,7 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    maxAge: 8 * 60 * 60 * 1000   // 8 giờ
+    maxAge: 8 * 60 * 60 * 1000   // 8 hour
   }
 }));
 
@@ -39,7 +39,7 @@ function requireAdmin(req, res, next) {
   res.status(403).json({ error: 'Chỉ Admin mới có quyền thực hiện thao tác này.' });
 }
 
-// ─── Static: Login page (không cần auth) ───────────────────
+// ─── Static: Login page ───────────────────
 app.use('/login-static', express.static(path.join(__dirname, 'login_static')));
 
 // ─── Login page ─────────────────────────────────────────────
@@ -74,13 +74,39 @@ app.post('/login', async (req, res) => {
   }
 });
 
+app.post('/register', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Vui lòng nhập đầy đủ thông tin.' });
+    }
+    if (username.trim().length < 3) {
+      return res.status(400).json({ error: 'Tên đăng nhập phải có ít nhất 3 ký tự.' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 6 ký tự.' });
+    }
+    await pool.query(
+      'INSERT INTO system_users (username, password, role) VALUES ($1, $2, $3)',
+      [username.trim(), password, 'user']
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Tên đăng nhập đã tồn tại.' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Đăng ký thất bại, vui lòng thử lại.' });
+  }
+});
+
 app.post('/logout', (req, res) => {
   req.session.destroy(() => {
     res.json({ ok: true });
   });
 });
 
-// API: trả về thông tin user đang đăng nhập (dùng cho frontend kiểm tra session)
+// API: Return the currently logged-in user information (for the frontend to check the session)
 app.get('/api/me', (req, res) => {
   if (req.session && req.session.user) {
     res.json({ loggedIn: true, username: req.session.user.username, role: req.session.user.role });
@@ -95,10 +121,10 @@ app.get('/', (req, res) => {
   res.redirect('/login');
 });
 
-// ─── Static: Admin dashboard (yêu cầu đăng nhập) ──────────
+// ─── Static: Admin dashboard ──────────
 app.use('/admin', requireLogin, express.static(path.join(__dirname, 'admin_static'), { index: 'admin.html' }));
 
-// ─── ESP32 → POST sensor data (không cần auth, ESP32 gọi trực tiếp) ───
+// ─── ESP32 → POST sensor data ───
 app.post('/sensor', async (req, res) => {
   try {
     const {
@@ -128,7 +154,7 @@ app.post('/sensor', async (req, res) => {
   }
 });
 
-// ─── Admin API: xem danh sách thiết bị (Admin + User) ──────
+// ─── Admin API: Get the list of devices (Admin + User) ──────
 app.get('/admin/api/devices', requireLogin, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -146,7 +172,7 @@ app.get('/admin/api/devices', requireLogin, async (req, res) => {
   }
 });
 
-// ─── Admin API: lịch sử thiết bị (Admin + User) ────────────
+// ─── Admin API: Device History (Admin + User) ────────────
 app.get('/admin/api/devices/:device_id/history', requireLogin, async (req, res) => {
   try {
     const { device_id } = req.params;
@@ -167,7 +193,7 @@ app.get('/admin/api/devices/:device_id/history', requireLogin, async (req, res) 
   }
 });
 
-// ─── Admin API: xóa thiết bị (CHỈ Admin) ──────────────────
+// ─── Admin API: Remove Device (Admin) ──────────────────
 app.delete('/admin/api/devices/:device_id', requireLogin, requireAdmin, async (req, res) => {
   try {
     const { device_id } = req.params;
@@ -179,7 +205,7 @@ app.delete('/admin/api/devices/:device_id', requireLogin, requireAdmin, async (r
   }
 });
 
-// ─── Device credentials: xác minh mật khẩu thiết bị (Admin + User) ───
+// ─── Device credentials: Verify Device Password (Admin + User) ───
 app.post('/admin/api/devices/:device_id/verify', requireLogin, async (req, res) => {
   try {
     const { device_id } = req.params;
@@ -196,7 +222,7 @@ app.post('/admin/api/devices/:device_id/verify', requireLogin, async (req, res) 
   }
 });
 
-// ─── Device credentials: đặt mật khẩu thiết bị (CHỈ Admin) ───
+// ─── Device credentials: Set Device Password (Admin) ───
 app.post('/admin/api/devices/:device_id/password', requireLogin, requireAdmin, async (req, res) => {
   try {
     const { device_id } = req.params;
@@ -215,7 +241,7 @@ app.post('/admin/api/devices/:device_id/password', requireLogin, requireAdmin, a
   }
 });
 
-// ─── Admin API: quản lý tài khoản hệ thống (CHỈ Admin) ────
+// ─── Admin API: System Account Management (Admin) ────
 app.get('/admin/api/users', requireLogin, requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
@@ -249,7 +275,6 @@ app.post('/admin/api/users', requireLogin, requireAdmin, async (req, res) => {
 app.delete('/admin/api/users/:id', requireLogin, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    // Không cho phép xóa chính mình
     if (parseInt(id) === req.session.user.id) {
       return res.status(400).json({ error: 'Không thể xóa tài khoản đang đăng nhập.' });
     }

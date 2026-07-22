@@ -1,16 +1,17 @@
 """
-Yêu cầu cài đặt:
-    pip install esptool littlefs-python
+Installation requirements:
+pip install esptool littlefs-python
 
-Cách dùng:
-1. Tìm file default_8MB.csv trong PlatformIO
-    Get-ChildItem -Path "$env:USERPROFILE\.platformio" -Recurse -Filter "default_8MB.csv" | Select-Object FullName
+Usage:
 
-2. Mở file theo đường dẫn, lấy đúng Offset và Size của spiffs, dùng để chỉ định chính xác Offset và Size của phân vùng SPIFFS/LittleFS trên flash
-    python scripts/pull_wifi_info.py --port COM7 --offset ..... --size .....
+1. Locate the default_8MB.csv file in PlatformIO.
+   Get-ChildItem -Path "$env:USERPROFILE\.platformio" -Recurse -Filter "default_8MB.csv" | Select-Object FullName
 
-3. Sử dụng lệnh sau khi cấu hình mặc định đã phù hợp và hệ thống có thể đọc/mount filesystem thành công
-    python scripts/pull_wifi_info.py --port COM7
+2. Open the file and find the Offset and Size values of the spiffs partition. Use these values to specify the correct Offset and Size of the SPIFFS/LittleFS partition in flash.
+   python scripts/pull_wifi_info.py --port COM7 --offset ..... --size .....
+
+3. Once the default configuration is correct and the system can successfully read and mount the filesystem, run:
+   python scripts/pull_wifi_info.py --port COM7
 """
 
 import argparse
@@ -116,7 +117,7 @@ def main() -> None:
         )
         sys.exit(1)
 
-    # Đọc danh sách WiFi
+    # Read the Wi-Fi list
     try:
         with fs.open("/wifi_list.json", "r") as src:
             wifi_list = json.loads(src.read())
@@ -128,7 +129,7 @@ def main() -> None:
             dst.write("[]")
         sys.exit(1)
 
-    # Đọc thông tin IP và SSID hiện tại
+    # Read the current IP address and SSID
     sta_ip = ""
     current_ssid = ""
     try:
@@ -139,24 +140,24 @@ def main() -> None:
     except FileNotFoundError:
         pass
 
-    # Unmount sau khi đã đọc xong dữ liệu
+    # Unmount the filesystem after reading the data
     fs.unmount()
 
-    # Cập nhật IP cho đúng SSID đang kết nối
+    # Update the IP address for the currently connected SSID
     for entry in wifi_list:
         entry["sta_ip"] = (
             sta_ip if entry.get("ssid") == current_ssid else ""
         )
 
-    # Định dạng lại JSON đầu ra cho đẹp (thêm indent=4)
+    # Format the output JSON for better readability (add indent=4)
     content = json.dumps(wifi_list, ensure_ascii=False, indent=4)
 
-    # Ghi dữ liệu ra file cấu hình
+    # Write the data to the configuration file
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
     with open(OUTPUT_PATH, "w", encoding="utf-8") as dst:
         dst.write(content)
 
-    print(f"\nĐã lưu thông tin WiFi ở data/wifi_info.json")
+    print(f"\nĐã lưu thông tin Wi-Fi ở data/wifi_info.json")
 
 
 if __name__ == "__main__":
