@@ -5,7 +5,6 @@
 #include <algorithm>
 
 // --- 1. FUNCTIONS TO DETERMINE LED AND NEOPIXEL CONTROL STATES ---
-
 static inline int risk_led_state_from_temperature(float t)
 {
     if (t < 10.0f || t > 30.0f)
@@ -34,7 +33,6 @@ static inline int risk_soil_state_from_moisture(float s)
 }
 
 // --- 2. PIECEWISE LINEAR PENALTY ALGORITHM FOR TINYML ---
-
 static inline float calc_penalty_temp(float t) {
     if (t >= 15.0f && t <= 25.0f) {
         return 0.0f; // Optimal (Normal)
@@ -84,7 +82,6 @@ static inline float calc_penalty_soil(float s) {
 }
 
 // --- 3. ORIGINAL MATHEMATICAL LABEL FUNCTION FOR TINYML BENCHMARKING ---
-
 static inline int risk_pure_mathematical_label(float temperature, float humidity, float soil_moisture) {
     float r = 0.35f * calc_penalty_temp(temperature) + 
               0.20f * calc_penalty_humi(humidity) + 
@@ -95,9 +92,7 @@ static inline int risk_pure_mathematical_label(float temperature, float humidity
     return 3;                // Critical
 }
 
-
 // --- 4. INTEGRATED SAFETY INTERLOCK FUNCTION FOR HARDWARE PROTECTION ---
-
 static inline int risk_final_safety_label(float temperature, float humidity, float soil_moisture) {
     if (temperature >= 40.0f || humidity >= 90.0f || soil_moisture < 15.0f || soil_moisture > 60.0f) {
         return 3; 

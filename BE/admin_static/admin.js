@@ -214,7 +214,7 @@
     return (state === null || state.isOnline);
   }
 
-  // ─── Action bar: ẩn nút xóa với User ──────────────────────
+  // ─── Action Bar: Hide the Delete button for User ──────────────────────
   function renderActionBar() {
     var actionBar = document.getElementById("customActionBar");
 

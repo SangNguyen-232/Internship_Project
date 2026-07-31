@@ -432,7 +432,6 @@
   }
 
   // ---------- Toggle buttons ----------
-
   els.pumpToggleBtn.addEventListener("click", function () {
     var nextState = state.pumpState === "ON" ? "OFF" : "ON";
 

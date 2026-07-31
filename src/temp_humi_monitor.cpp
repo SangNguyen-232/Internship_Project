@@ -4,8 +4,7 @@
 #include "task_webserver.h"
 #include <sys/time.h>
 
-// #define SOIL_PIN 6 
-#define SOIL_PIN 2 
+#define SOIL_PIN 2
 
 DHT20 dht20;
 LiquidCrystal_I2C lcd(0x27, 16, 2);

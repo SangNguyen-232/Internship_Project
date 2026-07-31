@@ -31,14 +31,12 @@ DEFAULT_BAUD = "921600"
 
 BLOCK_SIZE_CANDIDATES = [4096, 8192, 2048]
 
-
 def run(cmd: list) -> None:
     print(">>", " ".join(cmd))
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         print(result.stderr)
         sys.exit(result.returncode)
-
 
 def try_mount(raw: bytes, size_int: int, block_size: int):
     try:
@@ -51,7 +49,6 @@ def try_mount(raw: bytes, size_int: int, block_size: int):
         return fs
     except Exception:
         return None
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -122,7 +119,7 @@ def main() -> None:
         with fs.open("/wifi_list.json", "r") as src:
             wifi_list = json.loads(src.read())
     except FileNotFoundError:
-        print("Không tìm thấy danh sách WiFi đã lưu.")
+        print("Không tìm thấy danh sách Wi-Fi đã lưu.")
         fs.unmount()
         os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
         with open(OUTPUT_PATH, "w", encoding="utf-8") as dst:
@@ -143,11 +140,25 @@ def main() -> None:
     # Unmount the filesystem after reading the data
     fs.unmount()
 
-    # Update the IP address for the currently connected SSID
+    # Load existing wifi_info.json to preserve previously recorded sta_ip values
+    existing_map = {}
+    if os.path.exists(OUTPUT_PATH):
+        try:
+            with open(OUTPUT_PATH, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+            if isinstance(existing, list):
+                for item in existing:
+                    if item.get("ssid"):
+                        existing_map[item["ssid"]] = item.get("sta_ip", "")
+        except Exception:
+            pass
+
+    # Update sta_ip: set current SSID's IP from device, keep previous value for others
     for entry in wifi_list:
-        entry["sta_ip"] = (
-            sta_ip if entry.get("ssid") == current_ssid else ""
-        )
+        if entry.get("ssid") == current_ssid:
+            entry["sta_ip"] = sta_ip
+        else:
+            entry["sta_ip"] = existing_map.get(entry.get("ssid", ""), "")
 
     # Format the output JSON for better readability (add indent=4)
     content = json.dumps(wifi_list, ensure_ascii=False, indent=4)
@@ -158,7 +169,6 @@ def main() -> None:
         dst.write(content)
 
     print(f"\nĐã lưu thông tin Wi-Fi ở data/wifi_info.json")
-
 
 if __name__ == "__main__":
     main()

@@ -5,7 +5,6 @@
 
 #include <math.h>
 #include "dht_anomaly_model.h" 
-
 namespace
 {
     tflite::ErrorReporter *error_reporter = nullptr;
