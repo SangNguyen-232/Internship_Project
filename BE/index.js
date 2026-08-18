@@ -221,6 +221,21 @@ app.post('/admin/api/devices/:device_id/verify', requireLogin, async (req, res) 
   }
 });
 
+// ─── Device credentials: Check if Device has Password (Admin) ───
+app.get('/admin/api/devices/:device_id/has-password', requireLogin, requireAdmin, async (req, res) => {
+  try {
+    const { device_id } = req.params;
+    const result = await pool.query(
+      'SELECT 1 FROM device_credentials WHERE device_id = $1',
+      [device_id]
+    );
+    res.json({ hasPassword: result.rows.length > 0 });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Device credentials: Set Device Password (Admin) ───
 app.post('/admin/api/devices/:device_id/password', requireLogin, requireAdmin, async (req, res) => {
   try {
@@ -233,6 +248,18 @@ app.post('/admin/api/devices/:device_id/password', requireLogin, requireAdmin, a
        ON CONFLICT (device_id) DO UPDATE SET password = EXCLUDED.password`,
       [device_id, password]
     );
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Device credentials: Delete Device Password (Admin) ───
+app.delete('/admin/api/devices/:device_id/password', requireLogin, requireAdmin, async (req, res) => {
+  try {
+    const { device_id } = req.params;
+    await pool.query('DELETE FROM device_credentials WHERE device_id = $1', [device_id]);
     res.sendStatus(200);
   } catch (err) {
     console.error(err);

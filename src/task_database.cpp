@@ -1,6 +1,7 @@
 #include "task_database.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include "serial_log.h"
 #include "task_webserver.h"
 #include "pump.h"
@@ -67,14 +68,6 @@ void task_database(void *pvParameters)
             continue;
         }
 
-        if (global_admin_ip.isEmpty())
-        {
-            serialLogLock();
-            Serial.println("[DB] Chưa có IP admin.");
-            serialLogUnlock();
-            continue;
-        }
-
         float temperature = 0.0f;
         float humidity = 0.0f;
         int soilMoisture = 0;
@@ -136,11 +129,13 @@ void task_database(void *pvParameters)
         payload += "  \"trigger_source\":\"" + String(triggerSource) + "\"\n";
         payload += "}";
 
-        String dbUrl = "http://" + global_admin_ip + ":3000/sensor";
+        String dbUrl = "https://pie-anime-disclaimer-soup.trycloudflare.com/sensor";
 
+        WiFiClientSecure client;
+        client.setInsecure();
         HTTPClient http;
-        http.begin(dbUrl);
-        http.setTimeout(5000);
+        http.begin(client, dbUrl);
+        http.setTimeout(10000);
         http.addHeader("Content-Type", "application/json");
 
         int httpCode = http.POST(payload);

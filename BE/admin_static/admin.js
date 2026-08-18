@@ -551,7 +551,7 @@
     setInterval(fetchDevices, 5000);
   });
 
-  // ─── Device Login Modal ─────────────
+  // ─── Device Login Modal (User) ─────────────
   var loginTargetUrl = "";
   var loginTargetId  = "";
 
@@ -567,12 +567,152 @@
   var setPasswordBtn     = document.getElementById("setPasswordBtn");
   var setPasswordMsg     = document.getElementById("setPasswordMsg");
 
+  // ─── Admin Device Management Modal ──────────
+  var adminModal             = document.getElementById("adminDeviceModal");
+  var adminModalClose        = document.getElementById("adminModalClose");
+  var adminModalDeviceIdEl   = document.getElementById("adminModalDeviceId");
+  var adminEnterDashboardBtn = document.getElementById("adminEnterDashboardBtn");
+  var adminNewPasswordInput  = document.getElementById("adminNewPasswordInput");
+  var adminSavePasswordBtn   = document.getElementById("adminSavePasswordBtn");
+  var adminPwdMsg            = document.getElementById("adminPwdMsg");
+  var adminPwdSectionTitle   = document.getElementById("adminPwdSectionTitle");
+  var adminDeletePwdSection  = document.getElementById("adminDeletePwdSection");
+  var adminDeletePasswordBtn = document.getElementById("adminDeletePasswordBtn");
+
+  var adminTargetUrl = "";
+  var adminTargetId  = "";
+
+  // Open appropriate modal based on role
   function openDeviceLoginModal(deviceId, url) {
     if (isAdmin()) {
-      window.location.href = url;
+      openAdminDeviceModal(deviceId, url);
+    } else {
+      openUserDeviceModal(deviceId, url);
+    }
+  }
+
+  // ─── Admin modal ─────────────────────────────
+  function openAdminDeviceModal(deviceId, url) {
+    adminTargetId  = deviceId;
+    adminTargetUrl = url;
+
+    adminModalDeviceIdEl.textContent  = "Thiết bị: " + deviceId;
+    adminNewPasswordInput.value       = "";
+    adminPwdMsg.textContent           = "";
+    adminPwdMsg.className             = "login-msg";
+    adminDeletePwdSection.style.display = "none";
+    adminPwdSectionTitle.textContent  = "Đặt mật khẩu thiết bị";
+
+    adminModal.style.display = "flex";
+
+    // Check if this device already has a password
+    fetch("/admin/api/devices/" + encodeURIComponent(deviceId) + "/has-password")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.hasPassword) {
+          adminPwdSectionTitle.textContent    = "Đổi mật khẩu thiết bị";
+          adminDeletePwdSection.style.display = "";
+        } else {
+          adminPwdSectionTitle.textContent    = "Đặt mật khẩu thiết bị";
+          adminDeletePwdSection.style.display = "none";
+        }
+      })
+      .catch(function () {});
+
+    setTimeout(function () { adminNewPasswordInput.focus(); }, 80);
+  }
+
+  function closeAdminDeviceModal() {
+    adminModal.style.display = "none";
+  }
+
+  adminModalClose.addEventListener("click", closeAdminDeviceModal);
+
+  adminModal.addEventListener("click", function (e) {
+    if (e.target === adminModal) closeAdminDeviceModal();
+  });
+
+  // Admin: Enter Dashboard directly (no password required)
+  adminEnterDashboardBtn.addEventListener("click", function () {
+    closeAdminDeviceModal();
+    window.location.href = adminTargetUrl;
+  });
+
+  // Admin: Save password
+  adminNewPasswordInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") adminSavePasswordBtn.click();
+  });
+
+  adminSavePasswordBtn.addEventListener("click", function () {
+    var pass = adminNewPasswordInput.value.trim();
+    if (!pass) {
+      adminPwdMsg.textContent = "Vui lòng nhập mật khẩu.";
+      adminPwdMsg.className   = "login-msg error";
       return;
     }
 
+    adminSavePasswordBtn.disabled = true;
+    adminPwdMsg.textContent       = "Đang lưu...";
+    adminPwdMsg.className         = "login-msg";
+
+    fetch("/admin/api/devices/" + encodeURIComponent(adminTargetId) + "/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pass })
+    })
+      .then(function (r) {
+        adminSavePasswordBtn.disabled = false;
+        if (r.ok) {
+          adminPwdMsg.textContent             = "✓ Đã lưu mật khẩu thành công.";
+          adminPwdMsg.className               = "login-msg success";
+          adminNewPasswordInput.value         = "";
+          adminPwdSectionTitle.textContent    = "Đổi mật khẩu thiết bị";
+          adminDeletePwdSection.style.display = "";
+        } else {
+          adminPwdMsg.textContent = "Lưu thất bại, vui lòng thử lại.";
+          adminPwdMsg.className   = "login-msg error";
+        }
+      })
+      .catch(function () {
+        adminSavePasswordBtn.disabled = false;
+        adminPwdMsg.textContent       = "Lỗi kết nối, thử lại.";
+        adminPwdMsg.className         = "login-msg error";
+      });
+  });
+
+  // Admin: Delete password
+  adminDeletePasswordBtn.addEventListener("click", function () {
+    if (!confirm("Xóa mật khẩu của thiết bị \"" + adminTargetId + "\"?\nSau khi xóa, User có thể vào dashboard mà không cần mật khẩu.")) return;
+
+    adminDeletePasswordBtn.disabled = true;
+    adminPwdMsg.textContent         = "Đang xóa...";
+    adminPwdMsg.className           = "login-msg";
+
+    fetch("/admin/api/devices/" + encodeURIComponent(adminTargetId) + "/password", {
+      method: "DELETE"
+    })
+      .then(function (r) {
+        adminDeletePasswordBtn.disabled = false;
+        if (r.ok) {
+          adminPwdMsg.textContent             = "✓ Đã xóa mật khẩu.";
+          adminPwdMsg.className               = "login-msg success";
+          adminPwdSectionTitle.textContent    = "Đặt mật khẩu thiết bị";
+          adminDeletePwdSection.style.display = "none";
+          adminNewPasswordInput.value         = "";
+        } else {
+          adminPwdMsg.textContent = "Xóa thất bại, vui lòng thử lại.";
+          adminPwdMsg.className   = "login-msg error";
+        }
+      })
+      .catch(function () {
+        adminDeletePasswordBtn.disabled = false;
+        adminPwdMsg.textContent         = "Lỗi kết nối, thử lại.";
+        adminPwdMsg.className           = "login-msg error";
+      });
+  });
+
+  // ─── User modal (unchanged logic) ────────────
+  function openUserDeviceModal(deviceId, url) {
     loginTargetId  = deviceId;
     loginTargetUrl = url;
 
@@ -584,7 +724,6 @@
     setPasswordMsg.textContent     = "";
     setPasswordMsg.className       = "login-msg";
 
-    // Users cannot set a new device password—hide that section
     loginSection.style.display       = "";
     setPasswordSection.style.display = "none";
 
@@ -627,31 +766,26 @@
       .then(function (data) {
         loginSubmitBtn.disabled = false;
 
-        // If the device has no password: administrators can set one, while users can access the device directly
+        // Device has no password → User can access directly
         if (data.reason === "no_password") {
-          if (isAdmin()) {
-            loginSection.style.display       = "none";
-            setPasswordSection.style.display = "";
-            setTimeout(function () { newPasswordInput.focus(); }, 80);
-          } else {
-            // User: Proceed directly if the device has no password
-            loginMsg.textContent = "Thành công! Đang chuyển hướng...";
-            loginMsg.className   = "login-msg success";
-            setTimeout(function () { 
-              var _now = new Date();
-              var _pad = function(n) { return n < 10 ? "0" + n : "" + n; };
-              window.location.href = loginTargetUrl + "?session_start=" + _pad(_now.getHours()) + ":" + _pad(_now.getMinutes()) + ":" + _pad(_now.getSeconds()); }, 500);
-          }
+          loginMsg.textContent = "Thành công! Đang chuyển hướng...";
+          loginMsg.className   = "login-msg success";
+          setTimeout(function () {
+            var _now = new Date();
+            var _pad = function(n) { return n < 10 ? "0" + n : "" + n; };
+            window.location.href = loginTargetUrl + "?session_start=" + _pad(_now.getHours()) + ":" + _pad(_now.getMinutes()) + ":" + _pad(_now.getSeconds());
+          }, 500);
           return;
         }
 
         if (data.ok) {
           loginMsg.textContent = "Thành công! Đang chuyển hướng...";
           loginMsg.className   = "login-msg success";
-          setTimeout(function () { 
+          setTimeout(function () {
             var _now = new Date();
             var _pad = function(n) { return n < 10 ? "0" + n : "" + n; };
-            window.location.href = loginTargetUrl + "?session_start=" + _pad(_now.getHours()) + ":" + _pad(_now.getMinutes()) + ":" + _pad(_now.getSeconds()); }, 500);
+            window.location.href = loginTargetUrl + "?session_start=" + _pad(_now.getHours()) + ":" + _pad(_now.getMinutes()) + ":" + _pad(_now.getSeconds());
+          }, 500);
         } else {
           loginMsg.textContent = "Mật khẩu không đúng.";
           loginMsg.className   = "login-msg error";
@@ -670,7 +804,7 @@
   });
 
   setPasswordBtn.addEventListener("click", function () {
-    if (!isAdmin()) return;   // double-check
+    if (!isAdmin()) return;
     var pass = newPasswordInput.value.trim();
     if (!pass) {
       setPasswordMsg.textContent = "Vui lòng nhập mật khẩu.";

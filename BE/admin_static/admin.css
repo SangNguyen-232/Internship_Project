@@ -588,3 +588,58 @@ html, body {
   color: var(--muted);
   margin-bottom: 10px;
 }
+
+/* ─── Admin Device Modal ─── */
+.admin-modal-box {
+  max-width: 380px;
+}
+
+.admin-enter-btn {
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  letter-spacing: 0.01em;
+  transition: background 0.15s, transform 0.1s;
+}
+.admin-enter-btn:hover  { background: #4f7df5; }
+.admin-enter-btn:active { transform: translateY(1px); }
+
+.admin-pwd-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.admin-save-pwd-btn {
+  background: rgba(59,109,240,0.12);
+  border: 1px solid rgba(59,109,240,0.3);
+  color: var(--accent);
+  transition: background 0.15s, border-color 0.15s;
+}
+.admin-save-pwd-btn:hover {
+  background: rgba(59,109,240,0.22);
+  border-color: rgba(59,109,240,0.55);
+}
+.admin-save-pwd-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.admin-delete-pwd-btn {
+  width: 100%;
+  background: var(--red-soft);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.admin-delete-pwd-btn:hover {
+  background: rgba(239,68,68,0.25);
+  border-color: rgba(239,68,68,0.5);
+}
+.admin-delete-pwd-btn:disabled { opacity: 0.6; cursor: not-allowed; }

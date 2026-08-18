@@ -30,6 +30,15 @@ void setup()
   ctx->ledState = 1;
   ctx->neoState = 1;
   ctx->lcdState = 1;
+  ctx->mlPredicted = 1;
+  ctx->mlConfidence = 0.0f;
+  ctx->timestampReal = 0;
+  ctx->timestampRealUs = 0;
+  ctx->mlRollAcc = 0.0f;
+  strncpy(ctx->mlStatus, "Normal", sizeof(ctx->mlStatus) - 1);
+  ctx->mlStatus[sizeof(ctx->mlStatus) - 1] = '\0';
+  strncpy(ctx->dbTriggerSource, "sensor", sizeof(ctx->dbTriggerSource) - 1);
+  ctx->dbTriggerSource[sizeof(ctx->dbTriggerSource) - 1] = '\0';
   ctx->mutexContext = xSemaphoreCreateMutex();
   ctx->semLEDUpdate = xSemaphoreCreateBinary();
   ctx->semNeoUpdate = xSemaphoreCreateBinary();
@@ -43,7 +52,7 @@ void setup()
   xTaskCreate(temp_humi_monitor, "Task TEMP HUMI Monitor", 2048, (void*)ctx, 2, NULL);
   xTaskCreate(task_pump, "Task Pump", 2048, (void *)ctx, 2, NULL); 
   xTaskCreate(tiny_ml_task, "Tiny ML Task", 8192, (void *)ctx, 2, NULL);  
-  xTaskCreate(task_database, "Task Database", 4096, (void*)ctx, 2, NULL);
+  xTaskCreate(task_database, "Task Database", 12288, (void*)ctx, 2, NULL);
   xTaskCreate(Task_Toogle_BOOT, "Task_Toogle_BOOT", 4096, NULL, 2, NULL);
 }
 

@@ -140,6 +140,44 @@
   </div>
 </div>
 
+<!-- Admin Device Management Modal -->
+<div id="adminDeviceModal" class="login-modal-overlay" style="display:none;">
+  <div class="login-modal-box admin-modal-box">
+    <div class="login-modal-header">
+      <h2>⚙ Quản lý thiết bị</h2>
+      <button type="button" id="adminModalClose" class="login-modal-close">&times;</button>
+    </div>
+    <div class="login-device-id" id="adminModalDeviceId"></div>
+
+    <!-- Go to Dashboard -->
+    <button type="button" class="login-submit-btn admin-enter-btn" id="adminEnterDashboardBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:6px;"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      Vào Dashboard
+    </button>
+
+    <hr class="login-divider" style="margin-top:14px;" />
+
+    <!-- Set/Change Password -->
+    <div class="admin-pwd-section-title" id="adminPwdSectionTitle">Đặt mật khẩu thiết bị</div>
+    <div class="login-field" style="margin-top:8px;">
+      <label for="adminNewPasswordInput">Mật khẩu mới</label>
+      <div class="pwd-wrap">
+        <input type="password" id="adminNewPasswordInput" placeholder="Nhập mật khẩu mới..." autocomplete="new-password" />
+        <button type="button" class="btn-eye" data-target="adminNewPasswordInput" aria-label="Hiện/ẩn mật khẩu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+    <button type="button" class="login-submit-btn admin-save-pwd-btn" id="adminSavePasswordBtn">Lưu mật khẩu</button>
+    <div class="login-msg" id="adminPwdMsg"></div>
+
+    <!-- Delete Password (shown only when device already has a password) -->
+    <div id="adminDeletePwdSection" style="display:none; margin-top:10px;">
+      <button type="button" class="admin-delete-pwd-btn" id="adminDeletePasswordBtn">🗑 Xóa mật khẩu thiết bị</button>
+    </div>
+  </div>
+</div>
+
 <script src="./admin.js"></script>
 <script>
 (function () {

@@ -2,7 +2,8 @@
 #include "global.h"
 #include "task_webserver.h"   
 
-#define PUMP_PIN 6
+// #define PUMP_PIN 6
+#define PUMP_PIN 10
 #define PUMP_SOIL_THRESHOLD 5
 
 bool pump_manual_control = false;
