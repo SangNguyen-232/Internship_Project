@@ -115,7 +115,7 @@ void task_database(void *pvParameters)
         String payload = "{\n";
         payload += "  \"timestamp_real\":\"" + formatTimestamp(tvReal.tv_sec) + "\",\n";
         payload += "  \"timestamp_up\":\"" + formatTimestamp(tvUp.tv_sec) + "\",\n";
-        payload += "  \"temperature\":\"" + String(temperature, 2) + "°C\",\n";
+        payload += "  \"temperature\":\"" + String(temperature, 2) + "\\u00B0C\",\n";
         payload += "  \"humidity\":\"" + String(humidity, 2) + "%\",\n";
         char soilBuf[8];
         snprintf(soilBuf, sizeof(soilBuf), "%02d", soilMoisture);
@@ -129,7 +129,7 @@ void task_database(void *pvParameters)
         payload += "  \"trigger_source\":\"" + String(triggerSource) + "\"\n";
         payload += "}";
 
-        String dbUrl = "https://pie-anime-disclaimer-soup.trycloudflare.com/sensor";
+        String dbUrl = "https://whose-gets-sky-camera.trycloudflare.com/sensor";
 
         WiFiClientSecure client;
         client.setInsecure();

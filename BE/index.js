@@ -20,11 +20,11 @@ app.use(session({
 
 // ─── Database ──────────────────────────────────────────────
 const pool = new Pool({
-  host:     'localhost',
-  database: 'iot_db',
-  user:     'iot_user',
-  password: '004232',
-  port:     5432,
+  host:     process.env.DB_HOST     || 'localhost',
+  database: process.env.DB_NAME     || 'iot_db',
+  user:     process.env.DB_USER     || 'iot_user',
+  password: process.env.DB_PASS     || '004232',
+  port:     parseInt(process.env.DB_PORT || '5432', 10),
 });
 
 // ─── Auth Middlewares ───────────────────────────────────────
