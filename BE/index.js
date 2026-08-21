@@ -160,7 +160,8 @@ app.get('/admin/api/devices', requireLogin, async (req, res) => {
       SELECT DISTINCT ON (device_id)
         device_id, temperature, humidity, soil_moisture,
         "PUMP_state", "MODE_state", "Message", "Score",
-        timestamp_real, timestamp_up
+        timestamp_real AT TIME ZONE 'Asia/Ho_Chi_Minh' AS timestamp_real,
+        timestamp_up AT TIME ZONE 'Asia/Ho_Chi_Minh' AS timestamp_up
       FROM sensor_logs
       ORDER BY device_id, timestamp_up DESC
     `);
@@ -179,7 +180,8 @@ app.get('/admin/api/devices/:device_id/history', requireLogin, async (req, res) 
     const result = await pool.query(`
       SELECT temperature, humidity, soil_moisture,
              "PUMP_state", "MODE_state", "Message", "Score",
-             timestamp_real, timestamp_up
+             timestamp_real AT TIME ZONE 'Asia/Ho_Chi_Minh' AS timestamp_real,
+             timestamp_up AT TIME ZONE 'Asia/Ho_Chi_Minh' AS timestamp_up
       FROM sensor_logs
       WHERE device_id = $1
       ORDER BY timestamp_up DESC

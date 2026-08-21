@@ -116,12 +116,7 @@
         }
       }
 
-      var idx = currentDevices.findIndex(function (d) { return d.device_id === deviceId; });
-      if (idx !== -1) {
-        currentDevices[idx].timestamp_up = new Date().toISOString();
-        delete countdownStart[deviceId];
-      }
-    };
+      };
 
     ws.onclose = function () {
       delete deviceWsMap[deviceId];
@@ -184,9 +179,15 @@
 
   function updateStaleState(device) {
     var id = device.device_id;
-    if (!device.timestamp_up) return;
+    if (!device.timestamp_up) {
+      delete countdownStart[id];
+      return;
+    }
     var ts = getTimestampMs(device);
-    if (ts === null) return;
+    if (ts === null) {
+      delete countdownStart[id];
+      return;
+    }
     var age = Date.now() - ts;
     if (age >= STALE_DIFF_MS) {
       if (!countdownStart[id]) countdownStart[id] = ts + STALE_DIFF_MS;
@@ -210,8 +211,14 @@
   }
 
   function isDeviceOnline(device) {
+    var timestampMs = getTimestampMs(device);
+    if (timestampMs === null) return false;
+
     var state = getCountdownState(device.device_id);
-    return (state === null || state.isOnline);
+    if (state !== null) return state.isOnline;
+
+    var age = Date.now() - timestampMs;
+    return age >= 0 && age < STALE_DIFF_MS;
   }
 
   // ─── Action Bar: Hide the Delete button for User ──────────────────────
@@ -317,7 +324,7 @@
   // ─── Render device cards: only administrators can select devices for deletion ──────
   function renderCard(device) {
     var state = getCountdownState(device.device_id);
-    var cardOnline = (state === null || state.isOnline);
+    var cardOnline = isDeviceOnline(device);
     var cardStatusClass = cardOnline ? "online" : "offline";
     var cardStatusLabel = cardOnline ? "Online" : "Offline";
 
@@ -462,7 +469,10 @@
       }
 
       if (pillEl && labelEl) {
-        var cardOnline = (state === null || state.isOnline);
+        var device = currentDevices.find(function (item) {
+          return item.device_id === id;
+        });
+        var cardOnline = device ? isDeviceOnline(device) : false;
         pillEl.className = "status-pill " + (cardOnline ? "online" : "offline") + " js-status-pill";
         labelEl.textContent = cardOnline ? "Online" : "Offline";
       }
